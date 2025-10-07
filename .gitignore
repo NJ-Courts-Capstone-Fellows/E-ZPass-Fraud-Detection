@@ -1,0 +1,8 @@
+# Ignore CSV files
+*.csv
+*.CSV
+*.xlsx
+*.xls
+
+/data/raw/*
+
