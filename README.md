@@ -1,3 +1,0 @@
-# ezpass-fraud-detection
-
-### Contributors
