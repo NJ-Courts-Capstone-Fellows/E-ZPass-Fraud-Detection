@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Chart, registerables } from 'chart.js';
+import FileUpload from './components/FileUpload';
 Chart.register(...registerables);
 
 // --- Mock Data ---
@@ -455,7 +456,7 @@ const RiskGauge = ({ score, label }) => {
 
 // --- View Components ---
 
-const DashboardView = ({ setActiveView }) => {
+const DashboardView = ({ setActiveView, statistics, isLoading }) => {
     const [animate, setAnimate] = useState(false);
     
     useEffect(() => {
@@ -479,7 +480,9 @@ const DashboardView = ({ setActiveView }) => {
                         </div>
                     </div>
                     <h3 className="text-gray-400 text-sm font-medium mb-1">Total Alerts (YTD)</h3>
-                    <p className="text-4xl font-bold text-white mb-2 bg-gradient-to-r from-teal-400 to-teal-200 bg-clip-text text-transparent">1,428</p>
+                    <p className="text-4xl font-bold text-white mb-2 bg-gradient-to-r from-teal-400 to-teal-200 bg-clip-text text-transparent">
+                        {isLoading ? '...' : statistics.total_alerts.toLocaleString()}
+                    </p>
                 </div>
 
                 {/* Potential Loss Card */}
@@ -490,7 +493,9 @@ const DashboardView = ({ setActiveView }) => {
                         </div>
                     </div>
                     <h3 className="text-gray-400 text-sm font-medium mb-1">Potential Loss (YTD)</h3>
-                    <p className="text-4xl font-bold text-white mb-2 bg-gradient-to-r from-rose-400 to-rose-200 bg-clip-text text-transparent">$76,330</p>
+                    <p className="text-4xl font-bold text-white mb-2 bg-gradient-to-r from-rose-400 to-rose-200 bg-clip-text text-transparent">
+                        ${isLoading ? '...' : statistics.potential_loss.toLocaleString()}
+                    </p>
                 </div>
 
                 {/* Detected Frauds Card */}
@@ -501,7 +506,9 @@ const DashboardView = ({ setActiveView }) => {
                         </div>
                     </div>
                     <h3 className="text-gray-400 text-sm font-medium mb-1">Detected Frauds (Current Month)</h3>
-                    <p className="text-4xl font-bold text-white mb-2 bg-gradient-to-r from-amber-400 to-amber-200 bg-clip-text text-transparent">280</p>
+                    <p className="text-4xl font-bold text-white mb-2 bg-gradient-to-r from-amber-400 to-amber-200 bg-clip-text text-transparent">
+                        {isLoading ? '...' : statistics.detected_frauds.toLocaleString()}
+                    </p>
                 </div>
             </div>
 
@@ -548,9 +555,9 @@ const DashboardView = ({ setActiveView }) => {
                                         <p className="text-sm text-white font-medium mb-1">{txn.category}</p>
                                         <div className="flex items-center gap-3 text-xs text-gray-400">
                                             <span>{txn.tagPlate}</span>
-                                            <span>•</span>
+                                            <span>|</span>
                                             <span>${txn.amount.toFixed(2)}</span>
-                                            <span>•</span>
+                                            <span>|</span>
                                             <span>{txn.agency}</span>
                                         </div>
                                     </div>
@@ -564,7 +571,7 @@ const DashboardView = ({ setActiveView }) => {
                             onClick={() => setActiveView('data')}
                             className="w-full py-3 text-sm font-medium text-teal-400 hover:text-teal-300 transition-colors border border-slate-700 hover:border-teal-500/50 rounded-xl"
                         >
-                            View All Alerts →
+                            View All Alerts
                         </button>
                     </div>
                 </div>
@@ -594,13 +601,29 @@ const DashboardView = ({ setActiveView }) => {
     );
 };
 
-const DataView = () => {
+const UploadView = ({ onUploadSuccess, onUploadError }) => {
+    return (
+        <div className="space-y-6">
+            <FileUpload 
+                onUploadSuccess={onUploadSuccess}
+                onUploadError={onUploadError}
+            />
+        </div>
+    );
+};
+
+const DataView = ({ transactionData }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [filterStatus, setFilterStatus] = useState('all');
-    const [transactionData, setTransactionData] = useState(rawData);
+    const [localTransactionData, setLocalTransactionData] = useState(transactionData);
+
+    // Update local data when props change
+    useEffect(() => {
+        setLocalTransactionData(transactionData);
+    }, [transactionData]);
 
     const handleStatusChange = (transactionId, newStatus) => {
-        setTransactionData(prevData => 
+        setLocalTransactionData(prevData => 
             prevData.map(transaction => 
                 transaction.id === transactionId 
                     ? { ...transaction, status: newStatus }
@@ -609,7 +632,7 @@ const DataView = () => {
         );
     };
 
-    const filteredData = transactionData.filter(row => {
+    const filteredData = localTransactionData.filter(row => {
         const matchesSearch = row.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
                             row.category.toLowerCase().includes(searchTerm.toLowerCase());
         const matchesFilter = filterStatus === 'all' || row.status === filterStatus;
@@ -764,7 +787,7 @@ const DataView = () => {
                 {/* Pagination */}
                 <div className="bg-slate-900/50 px-6 py-4 border-t border-slate-700 flex items-center justify-between">
                     <div className="text-sm text-gray-400">
-                        Showing <span className="font-semibold text-white">{filteredData.length}</span> of <span className="font-semibold text-white">{transactionData.length}</span> transactions
+                        Showing <span className="font-semibold text-white">{filteredData.length}</span> of <span className="font-semibold text-white">{localTransactionData.length}</span> transactions
                     </div>
                     <div className="flex space-x-2">
                         <button className="px-4 py-2 bg-slate-700/50 text-gray-400 rounded-lg text-sm font-medium hover:bg-slate-700 transition-colors">
@@ -786,10 +809,80 @@ const DataView = () => {
     );
 };
 
+// --- API Functions ---
+const API_BASE_URL = 'http://localhost:5000/api';
+
+const fetchTransactions = async () => {
+    try {
+        const response = await fetch(`${API_BASE_URL}/transactions`);
+        const data = await response.json();
+        return data.transactions || [];
+    } catch (error) {
+        console.error('Error fetching transactions:', error);
+        return [];
+    }
+};
+
+const fetchStatistics = async () => {
+    try {
+        const response = await fetch(`${API_BASE_URL}/statistics`);
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error('Error fetching statistics:', error);
+        return {
+            total_alerts: 0,
+            potential_loss: 0,
+            detected_frauds: 0
+        };
+    }
+};
+
 // --- Main App Component ---
 
 export default function App() {
     const [activeView, setActiveView] = useState('dashboard');
+    const [transactionData, setTransactionData] = useState(rawData);
+    const [statistics, setStatistics] = useState({
+        total_alerts: 1428,
+        potential_loss: 76330,
+        detected_frauds: 280
+    });
+    const [isLoading, setIsLoading] = useState(false);
+
+    // Load data on component mount
+    useEffect(() => {
+        loadData();
+    }, []);
+
+    const loadData = async () => {
+        setIsLoading(true);
+        try {
+            const [transactions, stats] = await Promise.all([
+                fetchTransactions(),
+                fetchStatistics()
+            ]);
+            
+            if (transactions.length > 0) {
+                setTransactionData(transactions);
+            }
+            setStatistics(stats);
+        } catch (error) {
+            console.error('Error loading data:', error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleUploadSuccess = async (result) => {
+        console.log('Upload successful:', result);
+        // Reload data after successful upload
+        await loadData();
+    };
+
+    const handleUploadError = (error) => {
+        console.error('Upload error:', error);
+    };
 
     return (
         <div className="relative bg-slate-950 text-gray-200 min-h-screen" style={{ fontFamily: "'Inter', sans-serif" }}>
@@ -828,7 +921,7 @@ export default function App() {
                                                 : 'text-gray-400 hover:text-white'
                                         }`}
                                     >
-                                        📊 Dashboard
+                                        Dashboard
                                     </button>
                                     <button 
                                         onClick={() => setActiveView('data')} 
@@ -838,7 +931,17 @@ export default function App() {
                                                 : 'text-gray-400 hover:text-white'
                                         }`}
                                     >
-                                        📋 Raw Data
+                                        Raw Data
+                                    </button>
+                                    <button 
+                                        onClick={() => setActiveView('upload')} 
+                                        className={`px-6 py-2.5 text-sm font-semibold rounded-lg focus:outline-none transition-all duration-300 ${
+                                            activeView === 'upload' 
+                                                ? 'bg-gradient-to-r from-teal-600 to-teal-700 text-white' 
+                                                : 'text-gray-400 hover:text-white'
+                                        }`}
+                                    >
+                                        Upload Data
                                     </button>
                                 </div>
                             </div>
@@ -847,7 +950,12 @@ export default function App() {
 
                     {/* Main Content */}
                     <main className="animate-fadeIn">
-                        {activeView === 'dashboard' ? <DashboardView setActiveView={setActiveView} /> : <DataView />}
+                        {activeView === 'dashboard' ? 
+                            <DashboardView setActiveView={setActiveView} statistics={statistics} isLoading={isLoading} /> : 
+                            activeView === 'upload' ? 
+                                <UploadView onUploadSuccess={handleUploadSuccess} onUploadError={handleUploadError} /> :
+                                <DataView transactionData={transactionData} />
+                        }
                     </main>
                 </div>
             </div>
