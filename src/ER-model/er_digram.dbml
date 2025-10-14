@@ -1,0 +1,145 @@
+// Toll Transaction Analysis Database Schema
+
+Table AGENCY {
+  agency_id int [pk, increment]
+  agency_code varchar [unique, note: 'From AGENCY column']
+  agency_fullname varchar
+  
+  indexes {
+    agency_code
+  }
+}
+
+Table PLAZA {
+  plaza_id int [pk, increment]
+  plaza_code varchar [unique]
+  plaza_name varchar
+  agency varchar [note: 'Agency operating this plaza']
+  latitude decimal(10,8)
+  longitude decimal(11,8)
+  
+  indexes {
+    plaza_code
+    agency
+  }
+}
+
+Table VEHICLE_TYPE {
+  vehicle_type_id int [pk, increment]
+  vehicle_type_code varchar [unique, note: 'From VEHICLE TYPE CODE']
+  vehicle_class varchar [note: 'Derived classification']
+  
+  indexes {
+    vehicle_type_code
+  }
+}
+
+Table FARE_TYPE {
+  fare_type_id int [pk, increment]
+  fare_type_code varchar [unique, note: 'From FARE TYPE column']
+  description varchar
+}
+
+Table PLAN_RATE {
+  plan_rate_id int [pk, increment]
+  plan_rate_code varchar [unique, note: 'From PLAN/RATE column']
+  description varchar
+}
+
+Table INSTRUMENT {
+  instrument_id int [pk, increment]
+  tag_plate_number varchar [unique, note: 'From TAG/PLATE NUMBER']
+  prepaid_flag varchar [note: 'From PREPAID column']
+  
+  indexes {
+    tag_plate_number
+  }
+}
+
+Table TRIP {
+  trip_id bigint [pk, increment]
+  
+  // Original CSV fields
+  posting_date date [note: 'From POSTING DATE']
+  transaction_date date [note: 'From TRANSACTION DATE']
+  entry_time datetime [note: 'From ENTRY TIME']
+  entry_plaza varchar [note: 'From ENTRY PLAZA']
+  entry_lane varchar [note: 'From ENTRY LANE']
+  exit_time datetime [note: 'From EXIT TIME']
+  exit_plaza varchar [note: 'From EXIT PLAZA - references PLAZA.plaza_code']
+  exit_lane varchar [note: 'From EXIT LANE']
+  description varchar [note: 'From DESCRIPTION']
+  amount decimal(10,2) [note: 'From AMOUNT']
+  balance decimal(10,2) [note: 'From BALANCE']
+  
+  // Foreign Keys
+  instrument_id int [ref: > INSTRUMENT.instrument_id]
+  vehicle_type_id int [ref: > VEHICLE_TYPE.vehicle_type_id]
+  agency_id int [ref: > AGENCY.agency_id, note: 'Billing agency']
+  exit_plaza_id int [ref: > PLAZA.plaza_id]
+  fare_type_id int [ref: > FARE_TYPE.fare_type_id]
+  plan_rate_id int [ref: > PLAN_RATE.plan_rate_id]
+  
+  // Derived fields
+  post_lag_days int [note: 'posting_date - transaction_date']
+  exit_hour int [note: 'Hour extracted from exit_time']
+  exit_plaza_fullname varchar
+  exit_plaza_agency varchar
+  
+  indexes {
+    posting_date
+    transaction_date
+    exit_time
+    instrument_id
+    exit_plaza_id
+    (instrument_id, exit_time) [note: 'For sequential analysis']
+  }
+}
+
+Table TRIP_FEATURES {
+  trip_id bigint [pk, ref: - TRIP.trip_id]
+  
+  // Anomaly Detection Flags
+  flag_post_lag_high boolean [note: 'Unusually high posting lag']
+  flag_post_lag_negative boolean [note: 'Negative posting lag (future date)']
+  flag_sus_label_topup boolean [note: 'Suspicious top-up in description']
+  flag_zero_toll boolean [note: 'Zero amount transaction']
+  flag_amt_outlier boolean [note: 'Amount is statistical outlier']
+  flag_fast_repeat_exit boolean [note: 'Rapid successive exits']
+  flag_out_state_travel boolean [note: 'Out of state travel pattern']
+  flag_impossible_travel boolean [note: 'Speed exceeds physical limits']
+  flag_negative_balance boolean [note: 'Negative account balance']
+  flag_low_bal_no_topup boolean [note: 'Low balance without top-up']
+  
+  // Statistical Features (group-based)
+  group_median decimal(10,2) [note: '_group_median: Median for vehicle/plaza group']
+  group_count int [note: '_group_count: Count in group']
+  amt_deviation decimal(10,2) [note: '_amt_deviation: Deviation from group median']
+  
+  // Sequential Travel Features
+  mins_since_prev_exit int [note: '_mins_since_prev_exit: Time since last exit']
+  next_plaza varchar [note: '_next_plaza: Next plaza visited']
+  exit_time_p1 datetime [note: '_exit_time_p1: Previous exit time']
+  exit_time_p2 datetime [note: '_exit_time_p2: Next exit time']
+  
+  // Distance & Speed Calculations
+  time_diff_minutes int [note: '_time_diff: Minutes between consecutive exits']
+  distance_km decimal(10,2) [note: '_distance: Distance between plazas']
+  time_diff_hours decimal(10,4) [note: '_time_diff_hours: Hours between exits']
+  speed_kmh decimal(10,2) [note: '_speed: Calculated speed km/h']
+  
+  indexes {
+    flag_impossible_travel
+    flag_amt_outlier
+    flag_negative_balance
+  }
+}
+
+// Relationships Summary:
+// - AGENCY (1) -> (N) TRIP: Agency bills for trips
+// - PLAZA (1) -> (N) TRIP: Plaza is exit point
+// - INSTRUMENT (1) -> (N) TRIP: Tag/plate used for trip
+// - VEHICLE_TYPE (1) -> (N) TRIP: Vehicle classification
+// - FARE_TYPE (1) -> (N) TRIP: Fare classification
+// - PLAN_RATE (1) -> (N) TRIP: Rate plan applied
+// - TRIP (1) -> (1) TRIP_FEATURES: Feature engineering results
