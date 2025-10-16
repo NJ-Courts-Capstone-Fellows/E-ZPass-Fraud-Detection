@@ -1,5 +1,3 @@
-# E-ZPass Fraud Detection
-
 ## Overview
 Brief description of the E-ZPass fraud detection system and its purpose.
 
