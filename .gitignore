@@ -134,4 +134,3 @@ Thumbs.db
 # Airflow specific
 airflow/plugins/__pycache__/
 airflow/dags/__pycache__/
-airflow/config/
