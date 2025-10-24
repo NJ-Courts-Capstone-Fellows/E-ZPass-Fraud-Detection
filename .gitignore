@@ -97,9 +97,10 @@ dmypy.json
 
 # Log files
 *.log
-logs/
-airflow/logs/
-*.log.*
+# logs/
+# airflow/logs/
+# *.log.*
+src/airflow/logs/scheduler/
 
 # Data files (keep structure but ignore content)
 *.csv
@@ -134,3 +135,6 @@ Thumbs.db
 # Airflow specific
 airflow/plugins/__pycache__/
 airflow/dags/__pycache__/
+
+# GCP key
+gcp-key.json
