@@ -434,7 +434,7 @@ def verify_gcs_upload(**context):
 
 
 with DAG(
-    'gcs_upload_raw_pipeline',
+    'gcs_upload_raw',
     default_args=default_args,
     description='Detect, normalize, rename, and upload CSV files to GCS',
     schedule_interval='@hourly',
