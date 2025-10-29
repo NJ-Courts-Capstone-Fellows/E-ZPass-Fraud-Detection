@@ -153,59 +153,68 @@ def create_dataset(**context):
 
 def load_gcs_to_bigquery(**context):
     """
-    Step 3: Load CSV files from GCS into BigQuery bronze table
+    Step 3: Load new CSV files from GCS into BigQuery bronze table
+    Only loads files that don't already exist in BigQuery
     """
     from google.cloud import bigquery
     
     ti = context['ti']
-    gcs_files = ti.xcom_pull(key='gcs_files', task_ids='list_gcs_files')
-    dataset_id = ti.xcom_pull(key='dataset_id', task_ids='create_or_verify_dataset')
+    gcs_files = ti.xcom_pull(key='gcs_files', task_ids='detect_new_files')
+    dataset_id = ti.xcom_pull(key='dataset_id', task_ids='create_dataset')
+    new_files_count = ti.xcom_pull(key='new_files_count', task_ids='detect_new_files')
     
-    if not gcs_files:
-        # print("No files to load")
+    if not gcs_files or new_files_count == 0:
+        print("No new files to load")
+        context['ti'].xcom_push(key='loaded_files', value=[])
+        context['ti'].xcom_push(key='failed_files', value=[])
+        context['ti'].xcom_push(key='total_rows_loaded', value=0)
         return 0
     
-    # print("\nLOADING DATA TO BIGQUERY")
+    print("\n=== Loading Data to BigQuery ===")
     
     # Initialize BigQuery client
     client = bigquery.Client(project=GCS_PROJECT_ID)
     
     # Define table schema matching normalized column names
+    # Using STRING for dates/timestamps (already formatted correctly)
+    # Using FLOAT64 for amounts (cleaned in normalization)
     schema = [
-        bigquery.SchemaField("posting_date", "DATE"),
-        bigquery.SchemaField("transaction_date", "DATE"),
+        bigquery.SchemaField("posting_date", "STRING"),
+        bigquery.SchemaField("transaction_date", "STRING"),
         bigquery.SchemaField("tag_plate_number", "STRING"),
         bigquery.SchemaField("agency", "STRING"),
         bigquery.SchemaField("description", "STRING"),
-        bigquery.SchemaField("entry_time", "TIMESTAMP"),
+        bigquery.SchemaField("entry_time", "STRING"),
         bigquery.SchemaField("entry_plaza", "STRING"),
         bigquery.SchemaField("entry_lane", "STRING"),
-        bigquery.SchemaField("exit_time", "TIMESTAMP"),
+        bigquery.SchemaField("exit_time", "STRING"),
         bigquery.SchemaField("exit_plaza", "STRING"),
         bigquery.SchemaField("exit_lane", "STRING"),
         bigquery.SchemaField("vehicle_type_code", "STRING"),
-        bigquery.SchemaField("amount", "FLOAT64"),
-        bigquery.SchemaField("prepaid", "FLOAT64"),
+        bigquery.SchemaField("amount", "STRING"),  # Keep as STRING since CSV has it as STRING
+        bigquery.SchemaField("prepaid", "STRING"),
         bigquery.SchemaField("plan_rate", "STRING"),
         bigquery.SchemaField("fare_type", "STRING"),
-        bigquery.SchemaField("balance", "FLOAT64"),
-        bigquery.SchemaField("loaded_at", "TIMESTAMP"),
+        bigquery.SchemaField("balance", "STRING"),
+        bigquery.SchemaField("loaded_at", "STRING"),
         bigquery.SchemaField("source_file", "STRING"),
     ]
     
     table_id = f"{dataset_id}.{BIGQUERY_RAW_TABLE}"
     
-    # Configure load job
+    # Configure load job - use autodetect for more flexibility
     job_config = bigquery.LoadJobConfig(
         schema=schema,
         skip_leading_rows=1,  # Skip header row
         source_format=bigquery.SourceFormat.CSV,
-        write_disposition=bigquery.WriteDisposition.WRITE_APPEND,  # Append to existing data
-        autodetect=False,  # Use schema defined above
+        write_disposition=bigquery.WriteDisposition.WRITE_APPEND,
+        autodetect=False,  # Use explicit schema
         allow_quoted_newlines=True,
-        allow_jagged_rows=False,
-        max_bad_records=10,
+        allow_jagged_rows=True,
+        max_bad_records=100,  # Allow more bad records for debugging
         create_disposition=bigquery.CreateDisposition.CREATE_IF_NEEDED,
+        field_delimiter=',',
+        quote_character='"',
     )
     
     loaded_files = []
@@ -213,12 +222,13 @@ def load_gcs_to_bigquery(**context):
     total_rows_loaded = 0
     
     for gcs_file in gcs_files:
+        # gcs_file is a string path like "data/raw/transaction_2025_april.csv"
         uri = f"gs://{GCS_BUCKET}/{gcs_file}"
-        filename = gcs_file.split('/')[-1]
+        filename = gcs_file.split('/')[-1]  # Extract just the filename
         
-        # print(f"\nLoading: {filename}")
-        # print(f"Source: {uri}")
-        # print(f"Destination: {table_id}")
+        print(f"\n--- Loading: {filename} ---")
+        print(f"Source: {uri}")
+        print(f"Destination: {table_id}")
         
         try:
             # Start load job
@@ -231,15 +241,22 @@ def load_gcs_to_bigquery(**context):
             # Wait for job to complete
             load_job.result()
             
+            # Check for errors
+            if load_job.errors:
+                print(f"✗ FAILED with errors:")
+                for error in load_job.errors[:5]:  # Show first 5 errors
+                    print(f"  - {error}")
+                raise Exception(f"Load job had {len(load_job.errors)} errors")
+            
             # Get updated table info
             destination_table = client.get_table(table_id)
             rows_loaded = load_job.output_rows or 0
             total_rows_loaded += rows_loaded
             
-            # print(f"✓ SUCCESS")
-            # print(f"  Rows loaded: {rows_loaded:,}")
-            # print(f"  Total rows in table: {destination_table.num_rows:,}")
-            # print(f"  Job ID: {load_job.job_id}")
+            print(f"✓ SUCCESS")
+            print(f"  Rows loaded: {rows_loaded:,}")
+            print(f"  Total rows in table: {destination_table.num_rows:,}")
+            print(f"  Job ID: {load_job.job_id}")
             
             loaded_files.append({
                 'file': filename,
@@ -249,8 +266,17 @@ def load_gcs_to_bigquery(**context):
             
         except Exception as e:
             error_msg = str(e)
-            # print(f"✗ FAILED")
-            # print(f"  Error: {error_msg}")
+            print(f"✗ FAILED")
+            print(f"  Error: {error_msg}")
+            
+            # Try to get more detailed error information
+            try:
+                if hasattr(load_job, 'errors') and load_job.errors:
+                    print(f"  Detailed errors:")
+                    for error in load_job.errors[:3]:
+                        print(f"    - {error}")
+            except:
+                pass
             
             failed_files.append({
                 'file': filename,
@@ -262,17 +288,17 @@ def load_gcs_to_bigquery(**context):
             continue
     
     # Print summary
-    # print(f"\nLOAD SUMMARY")
-    # print(f"Total files processed: {len(gcs_files)}")
-    # print(f"Successfully loaded: {len(loaded_files)}")
-    # print(f"Failed: {len(failed_files)}")
-    # print(f"Total rows loaded: {total_rows_loaded:,}")
-    # print(f"Destination table: {table_id}")
+    print(f"\nLOAD SUMMARY")
+    print(f"Total files processed: {len(gcs_files)}")
+    print(f"Successfully loaded: {len(loaded_files)}")
+    print(f"Failed: {len(failed_files)}")
+    print(f"Total rows loaded: {total_rows_loaded:,}")
+    print(f"Destination table: {table_id}")
     
-    # if failed_files:
-    #     print("\nFailed files:")
-    #     for failed in failed_files:
-    #         print(f"  ✗ {failed['file']}: {failed['error'][:100]}...")
+    if failed_files:
+        print("\nFailed files:")
+        for failed in failed_files:
+            print(f"  ✗ {failed['file']}: {failed['error'][:100]}...")
     
     # Push results to XCom
     context['ti'].xcom_push(key='loaded_files', value=loaded_files)
@@ -296,8 +322,14 @@ def verify_bigquery_load(**context):
     total_rows_loaded = ti.xcom_pull(key='total_rows_loaded', task_ids='load_to_bigquery')
     loaded_files = ti.xcom_pull(key='loaded_files', task_ids='load_to_bigquery')
     
+    # Check if dataset_id exists
+    if not dataset_id:
+        print("⚠️ No dataset_id found - skipping verification")
+        print("This likely means no files were loaded")
+        return True
+    
     if total_rows_loaded == 0:
-        # print("No rows loaded, skipping verification")
+        print("✓ No new rows loaded this run, skipping verification")
         return True
     
     # print("\nVERIFYING BIGQUERY LOAD)
@@ -309,11 +341,11 @@ def verify_bigquery_load(**context):
     # Get table info
     table = client.get_table(table_id)
     
-    # print(f"Table: {table_id}")
-    # print(f"Total rows: {table.num_rows:,}")
-    # print(f"Size: {table.num_bytes:,} bytes")
-    # print(f"Created: {table.created}")
-    # print(f"Modified: {table.modified}")
+    print(f"Table: {table_id}")
+    print(f"Total rows: {table.num_rows:,}")
+    print(f"Size: {table.num_bytes:,} bytes")
+    print(f"Created: {table.created}")
+    print(f"Modified: {table.modified}")
     
     # Run a simple query to verify data
     query = f"""
@@ -322,84 +354,39 @@ def verify_bigquery_load(**context):
         COUNT(DISTINCT source_file) as unique_files,
         MIN(transaction_date) as earliest_transaction,
         MAX(transaction_date) as latest_transaction,
-        SUM(amount) as total_amount
+        SUM(SAFE_CAST(amount AS FLOAT64)) as total_amount
     FROM `{table_id}`
     """
     
-    # print("\nRunning verification query...")
+    print("\nRunning verification query...")
     
     try:
         query_job = client.query(query)
         results = query_job.result()
         
         for row in results:
-            # print(f"\n✓ Data Verification:")
-            # print(f"  Total rows: {row.total_rows:,}")
-            # print(f"  Unique files: {row.unique_files}")
-            # print(f"  Date range: {row.earliest_transaction} to {row.latest_transaction}")
-            # print(f"  Total amount: ${row.total_amount:,.2f}" if row.total_amount else "  Total amount: N/A")
+            print(f"\n✓ Data Verification:")
+            print(f"  Total rows: {row.total_rows:,}")
+            print(f"  Unique files: {row.unique_files}")
+            print(f"  Date range: {row.earliest_transaction} to {row.latest_transaction}")
+            print(f"  Total amount: ${row.total_amount:,.2f}" if row.total_amount else "  Total amount: N/A")
             pass
         
         # Verify loaded files count
-        # print(f"\n✓ Files loaded this run: {len(loaded_files) if loaded_files else 0}")
-        # if loaded_files:
-        #     for file_info in loaded_files:
-        #         print(f"  - {file_info['file']}: {file_info['rows']:,} rows")
-        # else:
-        #     print("  (No files loaded in this specific run)")
+        print(f"\n✓ Files loaded this run: {len(loaded_files) if loaded_files else 0}")
+        if loaded_files:
+            for file_info in loaded_files:
+                print(f"  - {file_info['file']}: {file_info['rows']:,} rows")
+        else:
+            print("  (No files loaded in this specific run)")
         
-        # print("\n✓ All verifications passed!")
+        print("\n✓ All verifications passed!")
         
         return True
         
     except Exception as e:
-        # print(f"\n✗ Verification failed: {str(e)}")
+        print(f"\n✗ Verification failed: {str(e)}")
         raise
-
-def get_sample_data(**context):
-    """
-    Step 5 (Optional): Get sample data for review
-    """
-    from google.cloud import bigquery
-    
-    ti = context['ti']
-    dataset_id = ti.xcom_pull(key='dataset_id', task_ids='create_or_verify_dataset')
-    
-    # print("\nSAMPLE DATA")
-    
-    # Initialize BigQuery client
-    client = bigquery.Client(project=GCS_PROJECT_ID)
-    table_id = f"{dataset_id}.{BIGQUERY_RAW_TABLE}"
-    
-    # Get 5 sample rows
-    query = f"""
-    SELECT *
-    FROM `{table_id}`
-    LIMIT 5
-    """
-    
-    try:
-        query_job = client.query(query)
-        results = query_job.result()
-        
-        # print(f"Sample rows from {table_id}:\n")
-        
-        for i, row in enumerate(results, 1):
-            # print(f"Row {i}:")
-            # print(f"  Transaction Date: {row.transaction_date}")
-            # print(f"  Tag/Plate: {row.tag_plate_number}")
-            # print(f"  Entry: {row.entry_plaza} at {row.entry_time}")
-            # print(f"  Exit: {row.exit_plaza} at {row.exit_time}")
-            # print(f"  Amount: ${row.amount:.2f}" if row.amount else "  Amount: N/A")
-            # print(f"  Source: {row.source_file}")
-            # print()
-            pass
-        
-        return True
-        
-    except Exception as e:
-        # print(f"Error getting sample data: {str(e)}")
-        return False
 
 
 # Define the DAG
