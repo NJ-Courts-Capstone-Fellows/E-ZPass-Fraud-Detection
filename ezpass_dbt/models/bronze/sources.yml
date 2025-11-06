@@ -66,3 +66,6 @@ sources:
             
           - name: source_file
             description: Original CSV filename
+
+      - name: holidays
+        description: BigQuery with list of NJ Courts Holidays from 2025 to 2035

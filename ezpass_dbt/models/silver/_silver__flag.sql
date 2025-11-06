@@ -7,6 +7,10 @@ WITH new_features AS (
     SELECT * FROM {{ ref('_silver__feateng') }}
 ),
 
+holidays AS (
+    SELECT * FROM {{ source('raw', 'holidays') }}
+),
+
 flagged AS (
     SELECT
         *,
@@ -39,7 +43,17 @@ flagged AS (
             WHEN 'Light Commercial' THEN TRUE
             WHEN 'Heavy Commercial' THEN TRUE
             ELSE FALSE
-        END as flag_is_vehicle_type_gt2
+        END as flag_is_vehicle_type_gt2,
+
+        -- Checks if the provided transaction_date is considered a NJ Courts Holiday
+        CASE 
+            WHEN EXISTS (
+                SELECT *
+                FROM holidays
+                WHERE holiday_date = transaction_date
+            ) THEN TRUE
+            ELSE FALSE
+        END AS flag_is_holiday
 
     FROM new_features
 )
