@@ -318,6 +318,7 @@ enriched AS (
         END as exit_plaza_name
         
     FROM cleaned
+    WHERE description = 'TOLL'
 )
 
 SELECT * FROM enriched

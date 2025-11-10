@@ -2,13 +2,15 @@
   "ExpandedNodes": [
     "",
     "\\models",
-    "\\models\\bronze",
+    "\\models\\gold",
     "\\models\\silver",
+    "\\target",
     "\\target\\compiled",
     "\\target\\compiled\\ezpass_dbt",
     "\\target\\compiled\\ezpass_dbt\\models",
+    "\\target\\compiled\\ezpass_dbt\\models\\gold",
     "\\target\\compiled\\ezpass_dbt\\models\\silver"
   ],
-  "SelectedNode": "\\models\\silver\\_silver__flag.sql",
+  "SelectedNode": "\\models\\gold\\gold.sql",
   "PreviewInSolutionExplorer": false
 }

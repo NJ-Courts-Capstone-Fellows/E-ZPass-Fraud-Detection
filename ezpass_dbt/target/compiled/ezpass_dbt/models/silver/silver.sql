@@ -1,6 +1,6 @@
 
 
-with __dbt__cte___silver__cleaning as (
+WITH  __dbt__cte___silver__cleaning as (
 
 
 WITH source AS (
@@ -361,6 +361,7 @@ enriched AS (
         END as exit_plaza_name
         
     FROM cleaned
+    WHERE description = 'TOLL'
 )
 
 SELECT * FROM enriched
@@ -470,7 +471,70 @@ new_features AS (
 )
 
 SELECT * FROM new_features
-) SELECT 
+),  __dbt__cte___silver__flag as (
+
+
+WITH new_features AS (
+    SELECT * FROM __dbt__cte___silver__feateng
+),
+
+holidays AS (
+    SELECT * FROM `njc-ezpass`.`ezpass_data`.`holidays`
+),
+
+flagged AS (
+    SELECT
+        *,
+        -- ============================================
+        -- DATA QUALITY FLAGS
+        -- ============================================
+        
+        -- Missing data flags
+        CASE WHEN entry_plaza IS NULL THEN TRUE ELSE FALSE END as is_missing_entry,
+        CASE WHEN exit_plaza IS NULL THEN TRUE ELSE FALSE END as is_missing_exit,
+        CASE WHEN entry_time IS NULL THEN TRUE ELSE FALSE END as is_missing_entry_time,
+        CASE WHEN exit_time IS NULL THEN TRUE ELSE FALSE END as is_missing_exit_time,
+
+        -- Usage Outside Business flags
+        -- Checks if a given date is a weekend (Saturday or Sunday)
+        CASE is_weekend
+            WHEN 'Weekend' THEN TRUE
+            WHEN 'Weekday' THEN FALSE
+            ELSE NULL
+        END as flag_is_weekend,
+
+        -- Checks if a person has traveled from NJ to a neighboring state: NY, PA, DE and vice versa. Also flags people using tolls outside the state of NJ
+        CASE state_name
+            WHEN 'NJ' THEN FALSE
+            ELSE TRUE
+        END as flag_is_out_of_state,
+
+        -- Checks if the provided vehicle_class_code is larger than allowed
+        CASE vehicle_class_category
+            WHEN 'Light Commercial' THEN TRUE
+            WHEN 'Heavy Commercial' THEN TRUE
+            ELSE FALSE
+        END as flag_is_vehicle_type_gt2,
+
+        -- Checks if the provided transaction_date is considered a NJ Courts Holiday
+        CASE 
+            WHEN EXISTS (
+                SELECT *
+                FROM holidays
+                WHERE holiday_date = transaction_date
+            ) THEN TRUE
+            ELSE FALSE
+        END AS flag_is_holiday
+
+    FROM new_features
+)
+
+SELECT * FROM flagged
+), silver_flag AS (
+    SELECT * FROM __dbt__cte___silver__flag
+)
+
+SELECT 
     -- Dates
     transaction_date,
     posting_date,
@@ -506,11 +570,12 @@ SELECT * FROM new_features
     balance,
     
     -- New features
+    daily_count,
+    state_name,
     transaction_dayofweek,
     transaction_dayofyear,
     transaction_month,
     transaction_day,
-    is_weekend,
     entry_time_of_day,
     exit_time_of_day,
     journey_time_of_day,
@@ -519,7 +584,14 @@ SELECT * FROM new_features
     travel_duration_category,
     vehicle_class_category,
 
+    -- Flags
+    flag_is_weekend,
+    flag_is_out_of_state,
+    flag_is_vehicle_type_gt2,
+    flag_is_holiday,
+
     -- Metadata (last)
     loaded_at as last_updated,
     source_file
-FROM __dbt__cte___silver__feateng
+
+FROM silver_flag

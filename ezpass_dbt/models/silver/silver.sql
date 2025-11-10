@@ -1,7 +1,11 @@
 {{ config(
     materialized='view',
-    tags=['silver']
+    tags=['silver'],
 ) }}
+
+WITH silver_flag AS (
+    SELECT * FROM {{ ref('_silver__flag') }}
+)
 
 SELECT 
     -- Dates
@@ -39,11 +43,12 @@ SELECT
     balance,
     
     -- New features
+    daily_count,
+    state_name,
     transaction_dayofweek,
     transaction_dayofyear,
     transaction_month,
     transaction_day,
-    is_weekend,
     entry_time_of_day,
     exit_time_of_day,
     journey_time_of_day,
@@ -52,7 +57,14 @@ SELECT
     travel_duration_category,
     vehicle_class_category,
 
+    -- Flags
+    flag_is_weekend,
+    flag_is_out_of_state,
+    flag_is_vehicle_type_gt2,
+    flag_is_holiday,
+
     -- Metadata (last)
     loaded_at as last_updated,
     source_file
-FROM {{ ref('_silver__feateng') }}
+
+FROM silver_flag
