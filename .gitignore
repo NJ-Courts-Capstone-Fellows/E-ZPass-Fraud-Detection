@@ -112,6 +112,7 @@ src/airflow/logs/scheduler/
 
 # IDE files
 .vscode/
+.vs/
 .idea/
 *.swp
 *.swo
@@ -135,6 +136,12 @@ Thumbs.db
 # Airflow specific
 airflow/plugins/__pycache__/
 airflow/dags/__pycache__/
+airflow/logs/
+
+# dbt specific
+ezpass_dbt/target/
+ezpass_dbt/logs/
+ezpass_dbt/dbt_packages/
 
 # GCP key
 gcp-key.json
