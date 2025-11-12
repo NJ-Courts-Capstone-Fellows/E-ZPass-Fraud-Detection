@@ -127,7 +127,7 @@ def normalize_columns(**context):
                     df[col] = pd.to_datetime(df[col], errors='coerce').dt.strftime('%Y-%m-%d %H:%M:%S')
             
             # Convert numeric columns
-            numeric_columns = ['amount', 'prepaid', 'balance']
+            numeric_columns = ['amount', 'balance']
             for col in numeric_columns:
                 if col in df.columns:
                     # Convert to string

@@ -2,6 +2,10 @@ version: '3.8'
 
 x-airflow-common:
   &airflow-common
+  # Build from Dockerfile instead of using base image
+  build:
+    context: .
+    dockerfile: Dockerfile
   image: apache/airflow:2.7.3-python3.10
   environment:
     &airflow-common-env
@@ -32,6 +36,7 @@ x-airflow-common:
     - ./src/airflow/logs:/opt/airflow/logs
     - ./src/airflow/plugins:/opt/airflow/plugins
     - ./src/airflow/config:/opt/airflow/config
+    - ./src/ml_train:/opt/airflow/ml_train
     - ./data:/opt/airflow/data
     - ./.env:/opt/airflow/.env
     # Uncomment below to use your local gcloud credentials (if no service account key)
