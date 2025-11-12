@@ -9,7 +9,19 @@ WITH enriched AS (
 
 new_features AS (
     SELECT
+        -- Generate unique MD5 hash for transaction ID
+        TO_HEX(MD5(CONCAT(
+            COALESCE(CAST(transaction_date AS STRING), 'NULL'), '|',
+            COALESCE(CAST(entry_time AS STRING), 'NULL'), '|',
+            COALESCE(CAST(exit_time AS STRING), 'NULL'), '|',
+            COALESCE(tag_plate_number, 'NULL'), '|',
+            COALESCE(entry_plaza, 'NULL'), '|',
+            COALESCE(exit_plaza, 'NULL'), '|',
+            COALESCE(CAST(amount AS STRING), 'NULL')
+        ))) as transaction_id,
+        
         *,
+        
         -- Feature engineering
         -- ============================================
         -- TIME-BASED FEATURES

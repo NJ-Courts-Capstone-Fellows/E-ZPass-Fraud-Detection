@@ -8,6 +8,9 @@ WITH silver_flag AS (
 )
 
 SELECT 
+    -- Transaction ID
+    transaction_id,
+    
     -- Dates
     transaction_date,
     posting_date,
@@ -20,7 +23,8 @@ SELECT
     tag_plate_number,
     agency,
     agency_name,
-    description,
+    -- Removed description as it only has 'TOLL' as value
+    -- description,
     
     -- Entry info
     entry_plaza,
@@ -39,7 +43,8 @@ SELECT
     
     -- Financial
     amount,
-    prepaid,
+    -- Removed prepaid as it only has 'Y' as value
+    -- prepaid,
     balance,
     
     -- New features
@@ -62,6 +67,10 @@ SELECT
     flag_is_out_of_state,
     flag_is_vehicle_type_gt2,
     flag_is_holiday,
+    is_missing_entry_plaza,
+    is_missing_exit_plaza,
+    is_missing_entry_time,
+    is_missing_exit_time,
 
     -- Metadata (last)
     loaded_at as last_updated,

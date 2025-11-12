@@ -9,7 +9,14 @@ WITH cleaned AS (
 
 enriched AS (
     SELECT
-        *,
+        * EXCEPT(fare_type),
+
+        -- Fare type enrichment
+        CASE fare_type
+            WHEN 'N' THEN 'Normal'
+            WHEN 'M' THEN 'Medium'
+            ELSE fare_type  -- Keep original value if not N or M
+        END as fare_type,
         
         -- Agency name enrichment
         CASE agency
