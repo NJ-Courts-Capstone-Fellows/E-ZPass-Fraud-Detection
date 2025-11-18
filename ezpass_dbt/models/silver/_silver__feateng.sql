@@ -83,7 +83,7 @@ new_features AS (
                 WHEN EXTRACT(HOUR FROM exit_time) BETWEEN 19 AND 21 THEN 'Evening'
                 ELSE 'Late Night'
             END
-        ) as journey_time_of_day,  -- e.g., "Morning Rush to Midday"
+        ) as travel_time_of_day,  -- e.g., "Morning Rush to Midday"
 
         -- Hour-by-hour patterns (0-23) 
         EXTRACT(HOUR FROM entry_time) as entry_hour,
@@ -109,10 +109,10 @@ new_features AS (
             WHEN vehicle_type_code IN ('3', '3L', '3H', 'B2', 'B3') THEN 'Light Commercial'
             WHEN vehicle_type_code IN ('4', '5', '6', '7', '8', '9', '4L', '4H', '5H', '6H', '7H') THEN 'Heavy Commercial'
             ELSE 'Unknown'
-        END as vehicle_class_category,
+        END as vehicle_type_name,
         
         -- Daily Number of Transactions by tag_plate_number
-        COUNT(*) OVER (PARTITION BY tag_plate_number, transaction_date) AS daily_count
+        COUNT(*) OVER (PARTITION BY tag_plate_number, transaction_date) AS tag_daily_txn_count
 
     FROM enriched
 )

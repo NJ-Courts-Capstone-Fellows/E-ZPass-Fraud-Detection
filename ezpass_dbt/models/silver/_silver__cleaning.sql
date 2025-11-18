@@ -31,7 +31,7 @@ cleaned AS (
         NULLIF(TRIM(fare_type), '-') as fare_type,
         
         -- Convert numeric fields (STRING → FLOAT64)
-        SAFE_CAST(amount AS FLOAT64) as amount,
+        ABS(SAFE_CAST(amount AS FLOAT64)) as amount,
         SAFE_CAST(balance AS FLOAT64) as balance,
         
         -- Keep metadata

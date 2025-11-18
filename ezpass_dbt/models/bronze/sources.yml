@@ -69,6 +69,6 @@ sources:
 
       - name: holidays
         description: BigQuery with list of NJ Courts Holidays from 2025 to 2035
-
-      - name: silver
-        description: Clean, enriched toll transaction data with standardized formats and human-readable names. This is the primary silver layer view combining cleaned data with agency and plaza lookups.
+      
+      - name: address_to_miles
+        description: Distance lookup table for plaza-to-plaza routes in miles
