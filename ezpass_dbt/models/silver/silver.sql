@@ -75,6 +75,7 @@ SELECT
     driver_amount_last_30txn_min,
     driver_amount_last_30txn_max,
     driver_amount_last_30txn_count,
+    driver_daily_txn_count,
     route_amount_avg,
     route_amount_std,
     route_amount_min,
@@ -83,7 +84,6 @@ SELECT
     route_transaction_count,
     
     -- New features
-    tag_daily_txn_count,
     state_name,
     -- transaction_dayofweek,
     -- transaction_dayofyear,

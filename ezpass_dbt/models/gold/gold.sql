@@ -44,13 +44,13 @@ SELECT
     -- transaction_dayofyear,
     -- transaction_month,
     -- transaction_day,
-    is_weekend,
-    is_holiday,
+    flag_is_weekend,
+    flag_is_holiday,
     
     -- ===== VEHICLE & FARE =====
     vehicle_type_code,
     vehicle_type_name,
-    is_commercial_vehicle,
+    flag_vehicle_type,
     plan_rate,
     fare_type,
     
@@ -74,7 +74,7 @@ SELECT
     driver_amount_last_30txn_min,
     driver_amount_last_30txn_max,
     driver_amount_last_30txn_count,
-    tag_daily_txn_count,
+    driver_daily_txn_count,
 
     -- ===== GOLD LAYER: DRIVER FEATURES =====
     driver_amount_median,

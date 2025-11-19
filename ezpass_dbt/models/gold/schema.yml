@@ -117,10 +117,10 @@ models:
       # - name: flag_is_weekend
       #   description: True if transaction_date is a weekend
 
-      # - name: flag_is_out_of_state
+      # - name: flag_outstate
       #   description: True if transaction is outside NJ or a cross-border trip
 
-      # - name: flag_is_vehicle_type_gt2
+      # - name: flag_vehicle_type
       #   description: True if vehicle class is Light/Heavy Commercial
 
       # - name: flag_is_holiday

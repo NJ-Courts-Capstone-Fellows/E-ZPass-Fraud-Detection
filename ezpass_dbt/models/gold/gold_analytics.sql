@@ -52,7 +52,7 @@ SELECT
     -- amount_deviation_from_median_pct,
     -- driver_today_spend,
     -- driver_avg_daily_spend_30d,
-    -- tag_daily_txn_count,
+    -- driver_daily_txn_count,
     
     -- ===== ROUTE METRICS =====
     -- route_amount_avg,
@@ -60,8 +60,8 @@ SELECT
     route_amount_z_score,
     
     -- ===== ANOMALY FLAGS =====
-    is_weekend,
-    is_holiday,
+    flag_is_weekend,
+    flag_is_holiday,
     flag_rush_hour,
     is_impossible_travel,
     is_rapid_succession,

@@ -113,7 +113,7 @@ new_features AS (
         END as vehicle_type_name,
         
         -- Daily Number of Transactions by tag_plate_number
-        COUNT(*) OVER (PARTITION BY tag_plate_number, transaction_date) AS tag_daily_txn_count
+        COUNT(*) OVER (PARTITION BY tag_plate_number, transaction_date) AS driver_daily_txn_count
 
     FROM enriched
 )
