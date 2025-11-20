@@ -8,7 +8,34 @@ load_dotenv()
 
 # Initialize BigQuery client
 key_path = os.getenv("BIGQUERY_KEY_JSON")
-client = bigquery.Client.from_service_account_json(key_path)
+if not key_path:
+    raise ValueError(
+        "BIGQUERY_KEY_JSON environment variable is not set. "
+        "Please set it in your .env file with the path to your service account JSON key."
+    )
+
+# Resolve relative paths relative to project root (parent of backend directory)
+if not os.path.isabs(key_path):
+    # Get the project root (parent of backend directory)
+    backend_dir = os.path.dirname(os.path.abspath(__file__))
+    project_root = os.path.dirname(backend_dir)
+    # Remove leading ./ if present
+    key_path = key_path.lstrip('./')
+    key_path = os.path.join(project_root, key_path)
+
+if not os.path.exists(key_path):
+    raise FileNotFoundError(
+        f"BigQuery service account key file not found at: {key_path}. "
+        "Please verify the path in your .env file."
+    )
+
+try:
+    client = bigquery.Client.from_service_account_json(key_path)
+except Exception as e:
+    raise RuntimeError(
+        f"Failed to initialize BigQuery client: {str(e)}. "
+        "Please verify your service account key is valid and has the required permissions."
+    )
 
 app = Flask(__name__)
 CORS(app)
@@ -18,7 +45,7 @@ CORS(app)
 def all_transactions():
     query = """
     SELECT * 
-    FROM `njc-ezpass.ezpass_data.gold`
+    FROM `njc-ezpass.ezpass_data.master_viz`
     ORDER BY transaction_date DESC
     """
     results = client.query(query).result()
@@ -28,7 +55,7 @@ def all_transactions():
 #Get flagged or investigating transactions (Recent Alerts)
 @app.route("/api/transactions/alerts")
 def alerts():
-    query = f"SELECT * FROM `njc-ezpass.ezpass_data.gold` WHERE flag_fraud = TRUE OR threat_severity IS NOT NULL LIMIT 100"
+    query = f"SELECT * FROM `njc-ezpass.ezpass_data.master_viz` WHERE flag_fraud = TRUE OR threat_severity IS NOT NULL LIMIT 100"
     results = client.query(query).result()
     rows = [dict(row) for row in results]
     return jsonify({"data": rows})
@@ -41,7 +68,7 @@ def metrics():
         COUNT(*) AS total_transactions,
         SUM(CASE WHEN flag_fraud THEN 1 ELSE 0 END) AS total_flagged,
         SUM(amount) AS total_amount
-    FROM `njc-ezpass.ezpass_data.gold`
+    FROM `njc-ezpass.ezpass_data.master_viz`
     """
     results = client.query(query).result()
     metrics = dict(next(results))
@@ -54,25 +81,25 @@ def category_chart():
     SELECT 
         'Holiday' AS category,
         COUNT(*) AS count
-    FROM `njc-ezpass.ezpass_data.gold`
+    FROM `njc-ezpass.ezpass_data.master_viz`
     WHERE flag_fraud = TRUE AND flag_is_holiday = TRUE
     UNION ALL
     SELECT 
         'Out of State' AS category,
         COUNT(*) AS count
-    FROM `njc-ezpass.ezpass_data.gold`
+    FROM `njc-ezpass.ezpass_data.master_viz`
     WHERE flag_fraud = TRUE AND flag_is_out_of_state = TRUE
     UNION ALL
     SELECT 
         'Vehicle Type > 2' AS category,
         COUNT(*) AS count
-    FROM `njc-ezpass.ezpass_data.gold`
+    FROM `njc-ezpass.ezpass_data.master_viz`
     WHERE flag_fraud = TRUE AND flag_is_vehicle_type_gt2 = TRUE
     UNION ALL
     SELECT 
         'Weekend' AS category,
         COUNT(*) AS count
-    FROM `njc-ezpass.ezpass_data.gold`
+    FROM `njc-ezpass.ezpass_data.master_viz`
     WHERE flag_fraud = TRUE AND flag_is_weekend = TRUE
     ORDER BY count DESC
     """
@@ -91,7 +118,7 @@ def category_chart():
 def severity_chart():
     query = f"""
     SELECT threat_severity, COUNT(*) AS count
-    FROM `njc-ezpass.ezpass_data.gold`
+    FROM `njc-ezpass.ezpass_data.master_viz`
     WHERE threat_severity IS NOT NULL
     GROUP BY threat_severity
     """
@@ -110,7 +137,7 @@ def monthly_chart():
             EXTRACT(MONTH FROM DATE(transaction_date)) AS month_num,
             COUNT(*) AS total_transactions,
             SUM(CASE WHEN flag_fraud = TRUE THEN 1 ELSE 0 END) AS fraud_alerts
-        FROM `njc-ezpass.ezpass_data.gold`
+        FROM `njc-ezpass.ezpass_data.master_viz`
         WHERE transaction_date IS NOT NULL
         GROUP BY year, month_num, month
         ORDER BY year DESC, month_num DESC
@@ -132,4 +159,4 @@ def monthly_chart():
         return jsonify({"data": [], "error": str(e)}), 500
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=True, port=5001)

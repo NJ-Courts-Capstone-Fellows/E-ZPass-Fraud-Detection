@@ -199,6 +199,24 @@ const SearchIcon = () => (
     </svg>
 );
 
+const SortUpIcon = () => (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+    </svg>
+);
+
+const SortDownIcon = () => (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+    </svg>
+);
+
+const SortIcon = () => (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+    </svg>
+);
+
 /*
 const TrendUpIcon = () => (
     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -819,6 +837,9 @@ const DashboardView = ({ setActiveView }) => {
 const DataView = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [filterStatus, setFilterStatus] = useState('all');
+    const [filterMLCategory, setFilterMLCategory] = useState('all');
+    const [sortColumn, setSortColumn] = useState(null);
+    const [sortDirection, setSortDirection] = useState('asc'); // 'asc' or 'desc'
     const [transactionData, setTransactionData] = useState([]);
     const [loading, setLoading] = useState(true);
     const [currentPage, setCurrentPage] = useState(1);
@@ -837,16 +858,27 @@ const DataView = () => {
     // Reset to page 1 when search or filter changes
     useEffect(() => {
         setCurrentPage(1);
-    }, [searchTerm, filterStatus]);
+    }, [searchTerm, filterStatus, filterMLCategory, sortColumn, sortDirection]);
 
     const handleStatusChange = (transactionId, newStatus) => {
         setTransactionData(prevData => 
             prevData.map(transaction => 
-                transaction.id === transactionId 
+                (transaction.transaction_id === transactionId || transaction.id === transactionId)
                     ? { ...transaction, status: newStatus }
                     : transaction
             )
         );
+    };
+
+    const handleSort = (column) => {
+        if (sortColumn === column) {
+            // Toggle direction if same column
+            setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+        } else {
+            // New column, start with ascending
+            setSortColumn(column);
+            setSortDirection('asc');
+        }
     };
 
     // Helper function to handle null/undefined values
@@ -909,16 +941,44 @@ const DataView = () => {
         }
     };
 
-    const filteredData = transactionData.filter(row => {
+    // Filter data
+    let filteredData = transactionData.filter(row => {
         const id = row.id || '';
         const category = row.category || '';
         const tagPlate = row.tag_plate_number || row.tagPlate || '';
         const matchesSearch = id.toLowerCase().includes(searchTerm.toLowerCase()) ||
                             category.toLowerCase().includes(searchTerm.toLowerCase()) ||
                             tagPlate.toLowerCase().includes(searchTerm.toLowerCase());
-        const matchesFilter = filterStatus === 'all' || row.status === filterStatus;
-        return matchesSearch && matchesFilter;
+        const matchesStatusFilter = filterStatus === 'all' || row.status === filterStatus;
+        const matchesMLCategoryFilter = filterMLCategory === 'all' || 
+                                       (row.ml_predicted_category && 
+                                        row.ml_predicted_category.toLowerCase() === filterMLCategory.toLowerCase());
+        return matchesSearch && matchesStatusFilter && matchesMLCategoryFilter;
     });
+
+    // Sort data
+    if (sortColumn) {
+        filteredData = [...filteredData].sort((a, b) => {
+            let aValue, bValue;
+            
+            if (sortColumn === 'amount') {
+                aValue = a.amount !== null && a.amount !== undefined ? parseFloat(a.amount) : -Infinity;
+                bValue = b.amount !== null && b.amount !== undefined ? parseFloat(b.amount) : -Infinity;
+            } else if (sortColumn === 'ml_predicted_score') {
+                aValue = a.ml_predicted_score !== null && a.ml_predicted_score !== undefined ? parseFloat(a.ml_predicted_score) : -Infinity;
+                bValue = b.ml_predicted_score !== null && b.ml_predicted_score !== undefined ? parseFloat(b.ml_predicted_score) : -Infinity;
+            } else if (sortColumn === 'rule_based_score') {
+                aValue = a.rule_based_score !== null && a.rule_based_score !== undefined ? parseFloat(a.rule_based_score) : -Infinity;
+                bValue = b.rule_based_score !== null && b.rule_based_score !== undefined ? parseFloat(b.rule_based_score) : -Infinity;
+            } else {
+                return 0;
+            }
+            
+            if (aValue === bValue) return 0;
+            const comparison = aValue > bValue ? 1 : -1;
+            return sortDirection === 'asc' ? comparison : -comparison;
+        });
+    }
 
     // Slice the filtered data for the current page
     const paginatedData = filteredData.slice(
@@ -950,46 +1010,29 @@ const DataView = () => {
                         </div>
                     </div>
                     <div className="flex space-x-2">
-                        <button
-                            onClick={() => setFilterStatus('all')}
-                            className={`px-4 py-3 rounded-xl text-sm font-medium transition-all ${
-                                filterStatus === 'all'
-                                    ? 'bg-teal-600 text-white'
-                                    : 'bg-slate-700/50 text-gray-400 hover:bg-slate-700'
-                            }`}
+                        <select
+                            value={filterStatus}
+                            onChange={(e) => setFilterStatus(e.target.value)}
+                            className="px-4 py-3 rounded-xl text-sm font-medium bg-slate-700/50 text-gray-300 border border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all cursor-pointer"
                         >
-                            All
-                        </button>
-                        <button
-                            onClick={() => setFilterStatus('Flagged')}
-                            className={`px-4 py-3 rounded-xl text-sm font-medium transition-all ${
-                                filterStatus === 'Flagged'
-                                    ? 'bg-amber-500 text-white'
-                                    : 'bg-slate-700/50 text-gray-400 hover:bg-slate-700'
-                            }`}
+                            <option value="all" className="bg-slate-800">All Status</option>
+                            <option value="Flagged" className="bg-slate-800">Flagged</option>
+                            <option value="Investigating" className="bg-slate-800">Investigating</option>
+                            <option value="Needs Review" className="bg-slate-800">Needs Review</option>
+                            <option value="Resolved" className="bg-slate-800">Resolved</option>
+                            <option value="No Action Required" className="bg-slate-800">No Action Required</option>
+                        </select>
+                        <select
+                            value={filterMLCategory}
+                            onChange={(e) => setFilterMLCategory(e.target.value)}
+                            className="px-4 py-3 rounded-xl text-sm font-medium bg-slate-700/50 text-gray-300 border border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all cursor-pointer"
                         >
-                            Flagged
-                        </button>
-                        <button
-                            onClick={() => setFilterStatus('Investigating')}
-                            className={`px-4 py-3 rounded-xl text-sm font-medium transition-all ${
-                                filterStatus === 'Investigating'
-                                    ? 'bg-red-500 text-white'
-                                    : 'bg-slate-700/50 text-gray-400 hover:bg-slate-700'
-                            }`}
-                        >
-                            Investigating
-                        </button>
-                        <button
-                            onClick={() => setFilterStatus('Resolved')}
-                            className={`px-4 py-3 rounded-xl text-sm font-medium transition-all ${
-                                filterStatus === 'Resolved'
-                                    ? 'bg-emerald-500 text-white'
-                                    : 'bg-slate-700/50 text-gray-400 hover:bg-slate-700'
-                            }`}
-                        >
-                            Resolved
-                        </button>
+                            <option value="all" className="bg-slate-800">All ML Categories</option>
+                            <option value="Critical Risk" className="bg-slate-800">Critical Risk</option>
+                            <option value="High Risk" className="bg-slate-800">High Risk</option>
+                            <option value="Medium Risk" className="bg-slate-800">Medium Risk</option>
+                            <option value="Low Risk" className="bg-slate-800">Low Risk</option>
+                        </select>
                     </div>
                 </div>
             </div>
@@ -997,44 +1040,206 @@ const DataView = () => {
             {/* Data Table */}
             <div className="bg-gradient-to-br from-slate-800/80 to-slate-800/40 backdrop-blur-sm border border-slate-700/50 rounded-2xl shadow-xl overflow-hidden">
                 <div className="overflow-x-auto">
-                    <table className="w-full text-base table-fixed">
+                    <table className="min-w-full text-base table-auto">
                         <thead className="bg-slate-900/50 border-b border-slate-700">
                             <tr>
-                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider w-[11%]">Tag/Plate Number</th>
-                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider w-[9%]">Transaction Date</th>
-                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider w-[7%]">Agency</th>
-                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider w-[12%]">Entry Time</th>
-                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider w-[6%]">Entry Plaza</th>
-                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider w-[12%]">Exit Time</th>
-                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider w-[6%]">Exit Plaza</th>
-                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider w-[9%]">Amount</th>
-                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider w-[11%]">Status</th>
-                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider w-[17%]">Category</th>
+                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[120px]">Status</th>
+                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[150px]">ML Predicted Category</th>
+                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[100px]">Is Anomaly</th>
+                                <th 
+                                    scope="col" 
+                                    className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[120px] cursor-pointer hover:bg-slate-800/50 transition-colors"
+                                    onClick={() => handleSort('rule_based_score')}
+                                >
+                                    <div className="flex items-center gap-2">
+                                        Rule-Based Score
+                                        {sortColumn === 'rule_based_score' ? (
+                                            sortDirection === 'asc' ? (
+                                                <SortUpIcon />
+                                            ) : (
+                                                <SortDownIcon />
+                                            )
+                                        ) : (
+                                            <span className="text-gray-600"><SortIcon /></span>
+                                        )}
+                                    </div>
+                                </th>
+                                <th 
+                                    scope="col" 
+                                    className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[120px] cursor-pointer hover:bg-slate-800/50 transition-colors"
+                                    onClick={() => handleSort('ml_predicted_score')}
+                                >
+                                    <div className="flex items-center gap-2">
+                                        ML Predicted Score
+                                        {sortColumn === 'ml_predicted_score' ? (
+                                            sortDirection === 'asc' ? (
+                                                <SortUpIcon />
+                                            ) : (
+                                                <SortDownIcon />
+                                            )
+                                        ) : (
+                                            <span className="text-gray-600"><SortIcon /></span>
+                                        )}
+                                    </div>
+                                </th>
+                                <th 
+                                    scope="col" 
+                                    className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[100px] cursor-pointer hover:bg-slate-800/50 transition-colors"
+                                    onClick={() => handleSort('amount')}
+                                >
+                                    <div className="flex items-center gap-2">
+                                        Amount
+                                        {sortColumn === 'amount' ? (
+                                            sortDirection === 'asc' ? (
+                                                <SortUpIcon />
+                                            ) : (
+                                                <SortDownIcon />
+                                            )
+                                        ) : (
+                                            <span className="text-gray-600"><SortIcon /></span>
+                                        )}
+                                    </div>
+                                </th>
+                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[120px]">Transaction ID</th>
+                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[140px]">Tag/Plate Number</th>
+                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[120px]">Transaction Date</th>
+                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[120px]">Posting Date</th>
+                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[100px]">Agency</th>
+                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[100px]">State</th>
+                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[120px]">Route Name</th>
+                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[100px]">Route In-State</th>
+                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[150px]">Entry Time</th>
+                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[100px]">Entry Plaza</th>
+                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[100px]">Entry Lane</th>
+                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[150px]">Exit Time</th>
+                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[100px]">Exit Plaza</th>
+                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[100px]">Exit Lane</th>
+                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[120px]">Vehicle Type</th>
+                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[100px]">Plan Rate</th>
+                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[100px]">Fare Type</th>
+                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[100px]">Distance (mi)</th>
+                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[120px]">Travel Time (min)</th>
+                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[100px]">Speed (mph)</th>
+                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[120px]">Travel Category</th>
+                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[100px]">Impossible Travel</th>
+                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[120px]">Rapid Succession</th>
+                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[100px]">Rush Hour</th>
+                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[100px]">Weekend</th>
+                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[100px]">Holiday</th>
+                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[140px]">Overlapping Journey</th>
+                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[140px]">Driver Amount Outlier</th>
+                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[140px]">Route Amount Outlier</th>
+                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[140px]">Amount Unusually High</th>
+                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[140px]">Driver Spend Spike</th>
+                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[150px]">Prediction Timestamp</th>
+                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[150px]">Last Updated</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-700/50">
                             {paginatedData.map((row, index) => {
+                                const transactionId = formatValue(row.transaction_id);
                                 const tagPlate = formatValue(row.tag_plate_number || row.tagPlate || row.tag_plate || row.plate_number);
                                 const transactionDate = formatDate(row.transaction_date);
+                                const postingDate = formatDate(row.posting_date);
                                 const agency = formatValue(row.agency);
+                                const stateName = formatValue(row.state_name);
+                                const routeName = formatValue(row.route_name);
+                                const routeInstate = row.route_instate !== null && row.route_instate !== undefined ? (row.route_instate ? 'Yes' : 'No') : '-';
                                 const entryTime = formatDateTime(row.entryTime || row.entry_time);
                                 const entryPlaza = formatValue(row.entryPlaza || row.entry_plaza);
+                                const entryLane = formatValue(row.entry_lane);
                                 const exitTime = formatDateTime(row.exitTime || row.exit_time);
                                 const exitPlaza = formatValue(row.exitPlaza || row.exit_plaza);
+                                const exitLane = formatValue(row.exit_lane);
+                                const vehicleType = formatValue(row.vehicle_type_name);
+                                const planRate = row.plan_rate !== null && row.plan_rate !== undefined ? `$${parseFloat(row.plan_rate).toFixed(2)}` : '-';
+                                const fareType = formatValue(row.fare_type);
                                 const amount = row.amount !== null && row.amount !== undefined ? `$${parseFloat(row.amount).toFixed(2)}` : '-';
+                                const distanceMiles = row.distance_miles !== null && row.distance_miles !== undefined ? parseFloat(row.distance_miles).toFixed(2) : '-';
+                                const travelTimeMinutes = row.travel_time_minutes !== null && row.travel_time_minutes !== undefined ? parseFloat(row.travel_time_minutes).toFixed(1) : '-';
+                                const speedMph = row.speed_mph !== null && row.speed_mph !== undefined ? parseFloat(row.speed_mph).toFixed(1) : '-';
+                                const travelCategory = formatValue(row.travel_time_category);
+                                const isAnomaly = row.is_anomaly !== null && row.is_anomaly !== undefined ? (row.is_anomaly ? 'Yes' : 'No') : '-';
+                                const ruleBasedScore = row.rule_based_score !== null && row.rule_based_score !== undefined ? parseFloat(row.rule_based_score).toFixed(2) : '-';
+                                const mlPredictedScore = row.ml_predicted_score !== null && row.ml_predicted_score !== undefined ? parseFloat(row.ml_predicted_score).toFixed(4) : '-';
+                                const mlPredictedCategory = formatValue(row.ml_predicted_category);
                                 const status = formatValue(row.status);
-                                const category = formatValue(row.category || row.vehicle_class_category);
+                                const isImpossibleTravel = row.is_impossible_travel !== null && row.is_impossible_travel !== undefined ? (row.is_impossible_travel ? 'Yes' : 'No') : '-';
+                                const isRapidSuccession = row.is_rapid_succession !== null && row.is_rapid_succession !== undefined ? (row.is_rapid_succession ? 'Yes' : 'No') : '-';
+                                const flagRushHour = row.flag_rush_hour !== null && row.flag_rush_hour !== undefined ? (row.flag_rush_hour ? 'Yes' : 'No') : '-';
+                                const flagIsWeekend = row.flag_is_weekend !== null && row.flag_is_weekend !== undefined ? (row.flag_is_weekend ? 'Yes' : 'No') : '-';
+                                const flagIsHoliday = row.flag_is_holiday !== null && row.flag_is_holiday !== undefined ? (row.flag_is_holiday ? 'Yes' : 'No') : '-';
+                                const flagOverlappingJourney = row.flag_overlapping_journey !== null && row.flag_overlapping_journey !== undefined ? (row.flag_overlapping_journey ? 'Yes' : 'No') : '-';
+                                const flagDriverAmountOutlier = row.flag_driver_amount_outlier !== null && row.flag_driver_amount_outlier !== undefined ? (row.flag_driver_amount_outlier ? 'Yes' : 'No') : '-';
+                                const flagRouteAmountOutlier = row.flag_route_amount_outlier !== null && row.flag_route_amount_outlier !== undefined ? (row.flag_route_amount_outlier ? 'Yes' : 'No') : '-';
+                                const flagAmountUnusuallyHigh = row.flag_amount_unusually_high !== null && row.flag_amount_unusually_high !== undefined ? (row.flag_amount_unusually_high ? 'Yes' : 'No') : '-';
+                                const flagDriverSpendSpike = row.flag_driver_spend_spike !== null && row.flag_driver_spend_spike !== undefined ? (row.flag_driver_spend_spike ? 'Yes' : 'No') : '-';
+                                const predictionTimestamp = formatDateTime(row.prediction_timestamp);
+                                const lastUpdated = formatDateTime(row.last_updated);
 
                                 return (
                                     <tr 
-                                        key={row.id || index} 
+                                        key={row.transaction_id || row.id || index} 
                                         className="hover:bg-slate-700/30 transition-colors duration-150 group"
                                     >
+                                        <td className="px-4 py-4 whitespace-nowrap">
+                                            {status !== '-' ? (
+                                                <select
+                                                    value={status}
+                                                    onChange={(e) => handleStatusChange(row.transaction_id || row.id, e.target.value)}
+                                                    className={`px-2 py-1.5 rounded-lg text-xs font-semibold border-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-0 ${
+                                                        status === 'Investigating' || status === 'Needs Review' ? 'bg-red-500/20 text-red-400 focus:ring-red-500/50' :
+                                                        status === 'Flagged' ? 'bg-amber-500/20 text-amber-400 focus:ring-amber-500/50' :
+                                                        'bg-emerald-500/20 text-emerald-400 focus:ring-emerald-500/50'
+                                                    }`}
+                                                >
+                                                    <option value="Flagged" className="bg-slate-800 text-amber-400">Flagged</option>
+                                                    <option value="Investigating" className="bg-slate-800 text-red-400">Investigating</option>
+                                                    <option value="Needs Review" className="bg-slate-800 text-red-400">Needs Review</option>
+                                                    <option value="Resolved" className="bg-slate-800 text-emerald-400">Resolved</option>
+                                                    <option value="No Action Required" className="bg-slate-800 text-gray-400">No Action Required</option>
+                                                </select>
+                                            ) : (
+                                                <span className="text-gray-400 text-base">-</span>
+                                            )}
+                                        </td>
+                                        <td className="px-4 py-4 whitespace-nowrap">
+                                            {mlPredictedCategory !== '-' ? (
+                                                <span className={`inline-block px-2 py-1 rounded-lg text-xs font-semibold ${
+                                                    mlPredictedCategory?.toLowerCase().includes('critical') ? 'bg-red-500/20 text-red-400 ring-1 ring-red-500/30' :
+                                                    mlPredictedCategory?.toLowerCase().includes('high') ? 'bg-orange-500/20 text-orange-400 ring-1 ring-orange-500/30' :
+                                                    mlPredictedCategory?.toLowerCase().includes('medium') ? 'bg-yellow-500/20 text-yellow-400 ring-1 ring-yellow-500/30' :
+                                                    'bg-green-500/20 text-green-400 ring-1 ring-green-500/30'
+                                                }`}>
+                                                    {mlPredictedCategory}
+                                                </span>
+                                            ) : (
+                                                <span className="text-gray-400 text-base">-</span>
+                                            )}
+                                        </td>
+                                        <td className="px-4 py-4 whitespace-nowrap text-gray-300 text-base">
+                                            {isAnomaly}
+                                        </td>
+                                        <td className="px-4 py-4 whitespace-nowrap text-gray-300 text-base">
+                                            {ruleBasedScore}
+                                        </td>
+                                        <td className="px-4 py-4 whitespace-nowrap text-gray-300 text-base">
+                                            {mlPredictedScore}
+                                        </td>
+                                        <td className="px-4 py-4 whitespace-nowrap">
+                                            <span className="font-semibold text-white text-base">{amount}</span>
+                                        </td>
+                                        <td className="px-4 py-4 whitespace-nowrap">
+                                            <span className="font-mono text-gray-100 font-medium text-sm">{transactionId}</span>
+                                        </td>
                                         <td className="px-4 py-4 whitespace-nowrap">
                                             <span className="font-mono text-gray-100 font-medium text-base">{tagPlate}</span>
                                         </td>
                                         <td className="px-4 py-4 whitespace-nowrap text-gray-300 text-base">
                                             {transactionDate}
+                                        </td>
+                                        <td className="px-4 py-4 whitespace-nowrap text-gray-300 text-base">
+                                            {postingDate}
                                         </td>
                                         <td className="px-4 py-4 whitespace-nowrap">
                                             {agency !== '-' ? (
@@ -1049,10 +1254,22 @@ const DataView = () => {
                                             )}
                                         </td>
                                         <td className="px-4 py-4 whitespace-nowrap text-gray-300 text-base">
+                                            {stateName}
+                                        </td>
+                                        <td className="px-4 py-4 whitespace-nowrap text-gray-300 text-base">
+                                            {routeName}
+                                        </td>
+                                        <td className="px-4 py-4 whitespace-nowrap text-gray-300 text-base">
+                                            {routeInstate}
+                                        </td>
+                                        <td className="px-4 py-4 whitespace-nowrap text-gray-300 text-base">
                                             {entryTime}
                                         </td>
                                         <td className="px-4 py-4 whitespace-nowrap text-gray-300 text-base">
                                             {entryPlaza}
+                                        </td>
+                                        <td className="px-4 py-4 whitespace-nowrap text-gray-300 text-base">
+                                            {entryLane}
                                         </td>
                                         <td className="px-4 py-4 whitespace-nowrap text-gray-300 text-base">
                                             {exitTime}
@@ -1060,40 +1277,65 @@ const DataView = () => {
                                         <td className="px-4 py-4 whitespace-nowrap text-gray-300 text-base">
                                             {exitPlaza}
                                         </td>
-                                        <td className="px-4 py-4 whitespace-nowrap">
-                                            <span className="font-semibold text-white text-base">{amount}</span>
+                                        <td className="px-4 py-4 whitespace-nowrap text-gray-300 text-base">
+                                            {exitLane}
                                         </td>
-                                        <td className="px-4 py-4 whitespace-nowrap">
-                                            {status !== '-' ? (
-                                                <select
-                                                    value={status}
-                                                    onChange={(e) => handleStatusChange(row.id, e.target.value)}
-                                                    className={`px-2 py-1.5 rounded-lg text-xs font-semibold border-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-0 ${
-                                                        status === 'Investigating' ? 'bg-red-500/20 text-red-400 focus:ring-red-500/50' :
-                                                        status === 'Flagged' ? 'bg-amber-500/20 text-amber-400 focus:ring-amber-500/50' :
-                                                        'bg-emerald-500/20 text-emerald-400 focus:ring-emerald-500/50'
-                                                    }`}
-                                                >
-                                                    <option value="Flagged" className="bg-slate-800 text-amber-400">Flagged</option>
-                                                    <option value="Investigating" className="bg-slate-800 text-red-400">Investigating</option>
-                                                    <option value="Resolved" className="bg-slate-800 text-emerald-400">Resolved</option>
-                                                </select>
-                                            ) : (
-                                                <span className="text-gray-400 text-base">-</span>
-                                            )}
+                                        <td className="px-4 py-4 whitespace-nowrap text-gray-300 text-base">
+                                            {vehicleType}
                                         </td>
-                                        <td className="px-4 py-4 whitespace-nowrap">
-                                            {category !== '-' ? (
-                                                <span className={`inline-block px-2 py-1 rounded-lg text-xs font-semibold ${
-                                                    category === 'Account Takeover' ? 'bg-pink-500/20 text-pink-400 ring-1 ring-pink-500/30' :
-                                                    category === 'Card Skimming' ? 'bg-purple-500/20 text-purple-400 ring-1 ring-purple-500/30' :
-                                                    'bg-cyan-500/20 text-cyan-400 ring-1 ring-cyan-500/30'
-                                                }`}>
-                                                    {category}
-                                                </span>
-                                            ) : (
-                                                <span className="text-gray-400 text-base">-</span>
-                                            )}
+                                        <td className="px-4 py-4 whitespace-nowrap text-gray-300 text-base">
+                                            {planRate}
+                                        </td>
+                                        <td className="px-4 py-4 whitespace-nowrap text-gray-300 text-base">
+                                            {fareType}
+                                        </td>
+                                        <td className="px-4 py-4 whitespace-nowrap text-gray-300 text-base">
+                                            {distanceMiles}
+                                        </td>
+                                        <td className="px-4 py-4 whitespace-nowrap text-gray-300 text-base">
+                                            {travelTimeMinutes}
+                                        </td>
+                                        <td className="px-4 py-4 whitespace-nowrap text-gray-300 text-base">
+                                            {speedMph}
+                                        </td>
+                                        <td className="px-4 py-4 whitespace-nowrap text-gray-300 text-base">
+                                            {travelCategory}
+                                        </td>
+                                        <td className="px-4 py-4 whitespace-nowrap text-gray-300 text-base">
+                                            {isImpossibleTravel}
+                                        </td>
+                                        <td className="px-4 py-4 whitespace-nowrap text-gray-300 text-base">
+                                            {isRapidSuccession}
+                                        </td>
+                                        <td className="px-4 py-4 whitespace-nowrap text-gray-300 text-base">
+                                            {flagRushHour}
+                                        </td>
+                                        <td className="px-4 py-4 whitespace-nowrap text-gray-300 text-base">
+                                            {flagIsWeekend}
+                                        </td>
+                                        <td className="px-4 py-4 whitespace-nowrap text-gray-300 text-base">
+                                            {flagIsHoliday}
+                                        </td>
+                                        <td className="px-4 py-4 whitespace-nowrap text-gray-300 text-base">
+                                            {flagOverlappingJourney}
+                                        </td>
+                                        <td className="px-4 py-4 whitespace-nowrap text-gray-300 text-base">
+                                            {flagDriverAmountOutlier}
+                                        </td>
+                                        <td className="px-4 py-4 whitespace-nowrap text-gray-300 text-base">
+                                            {flagRouteAmountOutlier}
+                                        </td>
+                                        <td className="px-4 py-4 whitespace-nowrap text-gray-300 text-base">
+                                            {flagAmountUnusuallyHigh}
+                                        </td>
+                                        <td className="px-4 py-4 whitespace-nowrap text-gray-300 text-base">
+                                            {flagDriverSpendSpike}
+                                        </td>
+                                        <td className="px-4 py-4 whitespace-nowrap text-gray-300 text-base">
+                                            {predictionTimestamp}
+                                        </td>
+                                        <td className="px-4 py-4 whitespace-nowrap text-gray-300 text-base">
+                                            {lastUpdated}
                                         </td>
                                     </tr>
                                 );
@@ -1174,17 +1416,65 @@ const DataView = () => {
     );
 };
 
+// --- Theme Toggle Icon Components ---
+const SunIcon = () => (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+    </svg>
+);
+
+const MoonIcon = () => (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+    </svg>
+);
+
 // --- Main App Component ---
 
 export default function App() {
     const [activeView, setActiveView] = useState('dashboard');
+    const [isDarkMode, setIsDarkMode] = useState(() => {
+        // Check localStorage first, then default to dark mode
+        const saved = localStorage.getItem('theme');
+        if (saved) {
+            return saved === 'dark';
+        }
+        return true; // Default to dark mode
+    });
+
+    useEffect(() => {
+        // Apply theme class to document root
+        if (isDarkMode) {
+            document.documentElement.classList.add('dark');
+            localStorage.setItem('theme', 'dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+            localStorage.setItem('theme', 'light');
+        }
+    }, [isDarkMode]);
+
+    const toggleTheme = () => {
+        setIsDarkMode(!isDarkMode);
+    };
 
     return (
-        <div className="relative bg-slate-950 text-gray-200 min-h-screen" style={{ fontFamily: "'Inter', sans-serif" }}>
+        <div className={`relative min-h-screen transition-colors duration-300 ${
+            isDarkMode 
+                ? 'bg-slate-950 text-gray-200' 
+                : 'bg-gray-50 text-gray-900'
+        }`} style={{ fontFamily: "'Inter', sans-serif" }}>
             {/* Animated Background */}
             <div className="fixed inset-0 overflow-hidden pointer-events-none">
-                <div className="absolute -top-1/2 -right-1/2 w-full h-full bg-gradient-to-br from-teal-500/10 via-cyan-500/5 to-transparent rounded-full blur-3xl animate-pulse"></div>
-                <div className="absolute -bottom-1/2 -left-1/2 w-full h-full bg-gradient-to-tr from-blue-500/10 via-teal-500/5 to-transparent rounded-full blur-3xl animate-pulse" style={{animationDelay: '1s'}}></div>
+                <div className={`absolute -top-1/2 -right-1/2 w-full h-full rounded-full blur-3xl animate-pulse ${
+                    isDarkMode 
+                        ? 'bg-gradient-to-br from-teal-500/10 via-cyan-500/5 to-transparent' 
+                        : 'bg-gradient-to-br from-teal-500/5 via-cyan-500/3 to-transparent'
+                }`}></div>
+                <div className={`absolute -bottom-1/2 -left-1/2 w-full h-full rounded-full blur-3xl animate-pulse ${
+                    isDarkMode 
+                        ? 'bg-gradient-to-tr from-blue-500/10 via-teal-500/5 to-transparent' 
+                        : 'bg-gradient-to-tr from-blue-500/5 via-teal-500/3 to-transparent'
+                }`} style={{animationDelay: '1s'}}></div>
             </div>
 
             <div className="relative z-10 p-4 sm:p-6 lg:p-8">
