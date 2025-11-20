@@ -2,7 +2,6 @@
 documents/**/*
 !documents/.gitkeep
 docs/
-backend/**/*
 !backend/.gitkeep
 
 # Specific files to ignore
@@ -73,6 +72,7 @@ env/
 ENV/
 env.bak/
 venv.bak/
+*venv/
 
 # pyenv
 .python-version
@@ -115,6 +115,8 @@ dmypy.json
 profile_default/
 ipython_config.py
 
+# Keys and credentials
+*keys/
 # Environment variables
 .env
 .env.local
