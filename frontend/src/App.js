@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Chart, registerables } from 'chart.js';
+import Plot from 'react-plotly.js';
 Chart.register(...registerables);
 
 
@@ -834,6 +835,130 @@ const DashboardView = ({ setActiveView }) => {
     );
 };
 
+const ScatterPlot = () => {
+    const [chartData, setChartData] = useState(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchScatterData = async () => {
+            try {
+                const response = await fetch('http://localhost:5001/api/charts/scatter');
+                const result = await response.json();
+                if (result.data && result.data.length > 0) {
+                    setChartData(result.data);
+                }
+            } catch (error) {
+                console.error('Error fetching scatter plot data:', error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchScatterData();
+    }, []);
+
+    if (loading) {
+        return <div className="text-gray-400">Loading scatter plot data...</div>;
+    }
+
+    if (!chartData || chartData.length === 0) {
+        return <div className="text-gray-400">No data available for scatter plot</div>;
+    }
+
+    // Group data by risk level
+    const riskLevels = ['Critical Risk', 'High Risk', 'Medium Risk', 'Low Risk'];
+    const colorMap = {
+        'Critical Risk': 'rgb(220, 38, 38)',      // Red
+        'High Risk': 'rgb(255, 140, 0)',          // Orange/Coral
+        'Medium Risk': 'rgb(59, 130, 246)',       // Blue
+        'Low Risk': 'rgb(34, 197, 94)'            // Green
+    };
+
+    const traces = riskLevels.map(riskLevel => {
+        const filteredData = chartData.filter(d => d.risk_level === riskLevel);
+        return {
+            x: filteredData.map(d => d.amount),
+            y: filteredData.map(d => d.ml_anomaly_score),
+            mode: 'markers',
+            type: 'scatter',
+            name: riskLevel,
+            marker: {
+                color: colorMap[riskLevel] || 'gray',
+                size: 5,
+                opacity: 0.6,
+                line: {
+                    width: 0.5,
+                    color: 'rgba(0, 0, 0, 0.1)'
+                }
+            }
+        };
+    }).filter(trace => trace.x.length > 0); // Remove empty traces
+
+    const layout = {
+        title: {
+            text: 'ML Anomaly Score vs Amount',
+            font: { color: '#e5e7eb', size: 20 }
+        },
+        xaxis: {
+            title: {
+                text: 'Amount',
+                font: { color: '#94a3b8' }
+            },
+            range: [0, 500],
+            gridcolor: 'rgba(71, 85, 105, 0.2)',
+            color: '#94a3b8'
+        },
+        yaxis: {
+            title: {
+                text: 'ml_anomaly_score',
+                font: { color: '#94a3b8' }
+            },
+            range: [-0.1, 0.5],
+            gridcolor: 'rgba(71, 85, 105, 0.2)',
+            color: '#94a3b8'
+        },
+        plot_bgcolor: 'rgba(15, 23, 42, 0.5)',
+        paper_bgcolor: 'transparent',
+        font: { color: '#94a3b8' },
+        legend: {
+            x: 1.02,
+            y: 1,
+            bgcolor: 'rgba(15, 23, 42, 0.8)',
+            bordercolor: 'rgba(71, 85, 105, 0.5)',
+            borderwidth: 1,
+            font: { color: '#e5e7eb' }
+        },
+        margin: { l: 60, r: 150, t: 60, b: 60 }
+    };
+
+    const config = {
+        displayModeBar: true,
+        displaylogo: false,
+        modeBarButtonsToRemove: ['pan2d', 'lasso2d'],
+        responsive: true
+    };
+
+    return (
+        <div style={{ height: '600px' }}>
+            <Plot
+                data={traces}
+                layout={layout}
+                config={config}
+                style={{ width: '100%', height: '100%' }}
+            />
+        </div>
+    );
+};
+
+const ChartsView = () => {
+    return (
+        <div className="space-y-6">
+            <div className="bg-gradient-to-br from-slate-800/80 to-slate-800/40 backdrop-blur-sm border border-slate-700/50 p-6 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300">
+                <ScatterPlot />
+            </div>
+        </div>
+    );
+};
+
 const DataView = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [filterStatus, setFilterStatus] = useState('all');
@@ -1514,6 +1639,16 @@ export default function App() {
                                     >
                                         Transactions
                                     </button>
+                                    <button 
+                                        onClick={() => setActiveView('charts')} 
+                                        className={`px-6 py-2.5 text-sm font-semibold rounded-lg focus:outline-none transition-all duration-300 ${
+                                            activeView === 'charts' 
+                                                ? 'bg-gradient-to-r from-teal-600 to-teal-700 text-white' 
+                                                : 'text-gray-400 hover:text-white'
+                                        }`}
+                                    >
+                                        Charts
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -1521,7 +1656,9 @@ export default function App() {
 
                     {/* Main Content */}
                     <main className="animate-fadeIn">
-                        {activeView === 'dashboard' ? <DashboardView setActiveView={setActiveView} /> : <DataView />}
+                        {activeView === 'dashboard' ? <DashboardView setActiveView={setActiveView} /> : 
+                         activeView === 'charts' ? <ChartsView /> : 
+                         <DataView />}
                     </main>
                 </div>
             </div>

@@ -158,5 +158,54 @@ def monthly_chart():
         print(f"Error fetching monthly chart data: {str(e)}")
         return jsonify({"data": [], "error": str(e)}), 500
 
+#Scatter plot data for ml_anomaly_score vs amount
+@app.route("/api/charts/scatter")
+def scatter_chart():
+    try:
+        query = """
+        SELECT 
+            amount,
+            ml_predicted_score AS ml_anomaly_score,
+            ml_predicted_category AS risk_level
+        FROM `njc-ezpass.ezpass_data.master_viz`
+        WHERE DATE(transaction_date) >= '2024-01-01'
+            AND amount IS NOT NULL
+            AND ml_predicted_score IS NOT NULL
+            AND ml_predicted_category IS NOT NULL
+        """
+        results = client.query(query).result()
+        data = [{
+            "amount": float(row["amount"]) if row["amount"] is not None else None,
+            "ml_anomaly_score": float(row["ml_anomaly_score"]) if row["ml_anomaly_score"] is not None else None,
+            "risk_level": row["risk_level"]
+        } for row in results]
+        return jsonify({"data": data})
+    except Exception as e:
+        print(f"Error fetching scatter chart data: {str(e)}")
+        return jsonify({"data": [], "error": str(e)}), 500
+
+#Time series data for anomaly counts by hour
+@app.route("/api/charts/timeseries")
+def timeseries_chart():
+    try:
+        query = """
+        SELECT 
+            EXTRACT(HOUR FROM entry_time) AS hour,
+            COUNT(*) AS fraud_count
+        FROM `njc-ezpass.ezpass_data.master_viz`
+        WHERE is_anomaly = 1
+        GROUP BY hour
+        ORDER BY hour
+        """
+        results = client.query(query).result()
+        data = [{
+            "hour": int(row["hour"]),
+            "fraud_count": int(row["fraud_count"])
+        } for row in results]
+        return jsonify({"data": data})
+    except Exception as e:
+        print(f"Error fetching timeseries chart data: {str(e)}")
+        return jsonify({"data": [], "error": str(e)}), 500
+
 if __name__ == "__main__":
     app.run(debug=True, port=5001)
