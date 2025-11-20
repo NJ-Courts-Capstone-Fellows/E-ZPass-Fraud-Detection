@@ -837,7 +837,7 @@ const DashboardView = ({ setActiveView }) => {
 const DataView = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [filterStatus, setFilterStatus] = useState('all');
-    const [filterMLCategory, setFilterMLCategory] = useState('all');
+    const [filterMLCategory, setFilterMLCategory] = useState('Critical Risk');
     const [sortColumn, setSortColumn] = useState(null);
     const [sortDirection, setSortDirection] = useState('asc'); // 'asc' or 'desc'
     const [transactionData, setTransactionData] = useState([]);
@@ -1027,7 +1027,7 @@ const DataView = () => {
                             onChange={(e) => setFilterMLCategory(e.target.value)}
                             className="px-4 py-3 rounded-xl text-sm font-medium bg-slate-700/50 text-gray-300 border border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all cursor-pointer"
                         >
-                            <option value="all" className="bg-slate-800">All ML Categories</option>
+                            <option value="all" className="bg-slate-800">All Risk Levels</option>
                             <option value="Critical Risk" className="bg-slate-800">Critical Risk</option>
                             <option value="High Risk" className="bg-slate-800">High Risk</option>
                             <option value="Medium Risk" className="bg-slate-800">Medium Risk</option>
@@ -1044,7 +1044,7 @@ const DataView = () => {
                         <thead className="bg-slate-900/50 border-b border-slate-700">
                             <tr>
                                 <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[120px]">Status</th>
-                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[150px]">ML Predicted Category</th>
+                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[150px]">ML Prediction</th>
                                 <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[100px]">Is Anomaly</th>
                                 <th 
                                     scope="col" 
@@ -1107,7 +1107,7 @@ const DataView = () => {
                                 <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[100px]">Agency</th>
                                 <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[100px]">State</th>
                                 <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[120px]">Route Name</th>
-                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[100px]">Route In-State</th>
+                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[100px]">Location Scope</th>
                                 <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[150px]">Entry Time</th>
                                 <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[100px]">Entry Plaza</th>
                                 <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[100px]">Entry Lane</th>
@@ -1144,7 +1144,7 @@ const DataView = () => {
                                 const agency = formatValue(row.agency);
                                 const stateName = formatValue(row.state_name);
                                 const routeName = formatValue(row.route_name);
-                                const routeInstate = row.route_instate !== null && row.route_instate !== undefined ? (row.route_instate ? 'Yes' : 'No') : '-';
+                                const routeInstate = row.route_instate !== null && row.route_instate !== undefined ? (row.route_instate ? 'In-State' : 'Out-State') : '-';
                                 const entryTime = formatDateTime(row.entryTime || row.entry_time);
                                 const entryPlaza = formatValue(row.entryPlaza || row.entry_plaza);
                                 const entryLane = formatValue(row.entry_lane);
@@ -1506,7 +1506,7 @@ export default function App() {
                                                 : 'text-gray-400 hover:text-white'
                                         }`}
                                     >
-                                        📊 Dashboard
+                                        Dashboard
                                     </button>
                                     <button 
                                         onClick={() => setActiveView('data')} 
@@ -1516,7 +1516,7 @@ export default function App() {
                                                 : 'text-gray-400 hover:text-white'
                                         }`}
                                     >
-                                        📋 Raw Data
+                                        Transactions
                                     </button>
                                 </div>
                             </div>
