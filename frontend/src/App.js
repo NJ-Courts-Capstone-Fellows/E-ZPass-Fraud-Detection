@@ -881,6 +881,28 @@ const DataView = () => {
         }
     };
 
+    // Helper function to render sortable column header
+    const SortableHeader = ({ column, label, minWidthClass = 'min-w-[120px]' }) => (
+        <th 
+            scope="col" 
+            className={`px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap ${minWidthClass} cursor-pointer hover:bg-slate-800/50 transition-colors`}
+            onClick={() => handleSort(column)}
+        >
+            <div className="flex items-center gap-2">
+                {label}
+                {sortColumn === column ? (
+                    sortDirection === 'asc' ? (
+                        <SortUpIcon />
+                    ) : (
+                        <SortDownIcon />
+                    )
+                ) : (
+                    <span className="text-gray-600"><SortIcon /></span>
+                )}
+            </div>
+        </th>
+    );
+
     // Helper function to handle null/undefined values
     const formatValue = (value) => {
         if (value === null || value === undefined || value === '') {
@@ -961,19 +983,44 @@ const DataView = () => {
         filteredData = [...filteredData].sort((a, b) => {
             let aValue, bValue;
             
-            if (sortColumn === 'amount') {
-                aValue = a.amount !== null && a.amount !== undefined ? parseFloat(a.amount) : -Infinity;
-                bValue = b.amount !== null && b.amount !== undefined ? parseFloat(b.amount) : -Infinity;
-            } else if (sortColumn === 'ml_predicted_score') {
-                aValue = a.ml_predicted_score !== null && a.ml_predicted_score !== undefined ? parseFloat(a.ml_predicted_score) : -Infinity;
-                bValue = b.ml_predicted_score !== null && b.ml_predicted_score !== undefined ? parseFloat(b.ml_predicted_score) : -Infinity;
-            } else if (sortColumn === 'rule_based_score') {
-                aValue = a.rule_based_score !== null && a.rule_based_score !== undefined ? parseFloat(a.rule_based_score) : -Infinity;
-                bValue = b.rule_based_score !== null && b.rule_based_score !== undefined ? parseFloat(b.rule_based_score) : -Infinity;
-            } else {
-                return 0;
+            // Numeric columns
+            const numericColumns = ['amount', 'ml_predicted_score', 'rule_based_score', 'distance_miles', 
+                                   'travel_time_minutes', 'speed_mph', 'plan_rate'];
+            if (numericColumns.includes(sortColumn)) {
+                aValue = a[sortColumn] !== null && a[sortColumn] !== undefined ? parseFloat(a[sortColumn]) : -Infinity;
+                bValue = b[sortColumn] !== null && b[sortColumn] !== undefined ? parseFloat(b[sortColumn]) : -Infinity;
+                if (aValue === bValue) return 0;
+                const comparison = aValue > bValue ? 1 : -1;
+                return sortDirection === 'asc' ? comparison : -comparison;
             }
             
+            // Date columns
+            const dateColumns = ['transaction_date', 'posting_date', 'entry_time', 'exit_time', 
+                                'prediction_timestamp', 'last_updated'];
+            if (dateColumns.includes(sortColumn)) {
+                aValue = a[sortColumn] ? new Date(a[sortColumn]).getTime() : -Infinity;
+                bValue = b[sortColumn] ? new Date(b[sortColumn]).getTime() : -Infinity;
+                if (aValue === bValue) return 0;
+                const comparison = aValue > bValue ? 1 : -1;
+                return sortDirection === 'asc' ? comparison : -comparison;
+            }
+            
+            // Boolean columns
+            const booleanColumns = ['is_anomaly', 'route_instate', 'is_impossible_travel', 'is_rapid_succession',
+                                   'flag_rush_hour', 'flag_is_weekend', 'flag_is_holiday', 'flag_overlapping_journey',
+                                   'flag_driver_amount_outlier', 'flag_route_amount_outlier', 
+                                   'flag_amount_unusually_high', 'flag_driver_spend_spike'];
+            if (booleanColumns.includes(sortColumn)) {
+                aValue = a[sortColumn] === true ? 1 : (a[sortColumn] === false ? 0 : -1);
+                bValue = b[sortColumn] === true ? 1 : (b[sortColumn] === false ? 0 : -1);
+                if (aValue === bValue) return 0;
+                const comparison = aValue > bValue ? 1 : -1;
+                return sortDirection === 'asc' ? comparison : -comparison;
+            }
+            
+            // String columns (default)
+            aValue = (a[sortColumn] || '').toString().toLowerCase();
+            bValue = (b[sortColumn] || '').toString().toLowerCase();
             if (aValue === bValue) return 0;
             const comparison = aValue > bValue ? 1 : -1;
             return sortDirection === 'asc' ? comparison : -comparison;
@@ -1043,96 +1090,45 @@ const DataView = () => {
                     <table className="min-w-full text-base table-auto">
                         <thead className="bg-slate-900/50 border-b border-slate-700">
                             <tr>
-                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[120px]">Status</th>
-                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[150px]">ML Prediction</th>
-                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[100px]">Is Anomaly</th>
-                                <th 
-                                    scope="col" 
-                                    className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[120px] cursor-pointer hover:bg-slate-800/50 transition-colors"
-                                    onClick={() => handleSort('rule_based_score')}
-                                >
-                                    <div className="flex items-center gap-2">
-                                        Rule-Based Score
-                                        {sortColumn === 'rule_based_score' ? (
-                                            sortDirection === 'asc' ? (
-                                                <SortUpIcon />
-                                            ) : (
-                                                <SortDownIcon />
-                                            )
-                                        ) : (
-                                            <span className="text-gray-600"><SortIcon /></span>
-                                        )}
-                                    </div>
-                                </th>
-                                <th 
-                                    scope="col" 
-                                    className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[120px] cursor-pointer hover:bg-slate-800/50 transition-colors"
-                                    onClick={() => handleSort('ml_predicted_score')}
-                                >
-                                    <div className="flex items-center gap-2">
-                                        ML Predicted Score
-                                        {sortColumn === 'ml_predicted_score' ? (
-                                            sortDirection === 'asc' ? (
-                                                <SortUpIcon />
-                                            ) : (
-                                                <SortDownIcon />
-                                            )
-                                        ) : (
-                                            <span className="text-gray-600"><SortIcon /></span>
-                                        )}
-                                    </div>
-                                </th>
-                                <th 
-                                    scope="col" 
-                                    className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[100px] cursor-pointer hover:bg-slate-800/50 transition-colors"
-                                    onClick={() => handleSort('amount')}
-                                >
-                                    <div className="flex items-center gap-2">
-                                        Amount
-                                        {sortColumn === 'amount' ? (
-                                            sortDirection === 'asc' ? (
-                                                <SortUpIcon />
-                                            ) : (
-                                                <SortDownIcon />
-                                            )
-                                        ) : (
-                                            <span className="text-gray-600"><SortIcon /></span>
-                                        )}
-                                    </div>
-                                </th>
-                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[120px]">Transaction ID</th>
-                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[140px]">Tag/Plate Number</th>
-                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[120px]">Transaction Date</th>
-                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[120px]">Posting Date</th>
-                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[100px]">Agency</th>
-                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[100px]">State</th>
-                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[120px]">Route Name</th>
-                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[100px]">Location Scope</th>
-                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[150px]">Entry Time</th>
-                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[100px]">Entry Plaza</th>
-                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[100px]">Entry Lane</th>
-                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[150px]">Exit Time</th>
-                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[100px]">Exit Plaza</th>
-                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[100px]">Exit Lane</th>
-                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[120px]">Vehicle Type</th>
-                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[100px]">Plan Rate</th>
-                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[100px]">Fare Type</th>
-                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[100px]">Distance (mi)</th>
-                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[120px]">Travel Time (min)</th>
-                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[100px]">Speed (mph)</th>
-                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[120px]">Travel Category</th>
-                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[100px]">Impossible Travel</th>
-                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[120px]">Rapid Succession</th>
-                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[100px]">Rush Hour</th>
-                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[100px]">Weekend</th>
-                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[100px]">Holiday</th>
-                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[140px]">Overlapping Journey</th>
-                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[140px]">Driver Amount Outlier</th>
-                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[140px]">Route Amount Outlier</th>
-                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[140px]">Amount Unusually High</th>
-                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[140px]">Driver Spend Spike</th>
-                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[150px]">Prediction Timestamp</th>
-                                <th scope="col" className="px-4 py-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[150px]">Last Updated</th>
+                                <SortableHeader column="status" label="Status" minWidthClass="min-w-[120px]" />
+                                <SortableHeader column="ml_predicted_category" label="ML Prediction" minWidthClass="min-w-[150px]" />
+                                <SortableHeader column="is_anomaly" label="Is Anomaly" minWidthClass="min-w-[100px]" />
+                                <SortableHeader column="rule_based_score" label="Rule-Based Score" minWidthClass="min-w-[120px]" />
+                                <SortableHeader column="ml_predicted_score" label="ML Predicted Score" minWidthClass="min-w-[120px]" />
+                                <SortableHeader column="amount" label="Amount" minWidthClass="min-w-[100px]" />
+                                <SortableHeader column="transaction_id" label="Transaction ID" minWidthClass="min-w-[120px]" />
+                                <SortableHeader column="tag_plate_number" label="Tag/Plate Number" minWidthClass="min-w-[140px]" />
+                                <SortableHeader column="transaction_date" label="Transaction Date" minWidthClass="min-w-[120px]" />
+                                <SortableHeader column="posting_date" label="Posting Date" minWidthClass="min-w-[120px]" />
+                                <SortableHeader column="agency" label="Agency" minWidthClass="min-w-[100px]" />
+                                <SortableHeader column="route_instate" label="State" minWidthClass="min-w-[100px]" />
+                                <SortableHeader column="route_name" label="Route Name" minWidthClass="min-w-[120px]" />
+                                <SortableHeader column="route_instate" label="Location Scope" minWidthClass="min-w-[100px]" />
+                                <SortableHeader column="entry_time" label="Entry Time" minWidthClass="min-w-[150px]" />
+                                <SortableHeader column="entry_plaza" label="Entry Plaza" minWidthClass="min-w-[100px]" />
+                                <SortableHeader column="entry_lane" label="Entry Lane" minWidthClass="min-w-[100px]" />
+                                <SortableHeader column="exit_time" label="Exit Time" minWidthClass="min-w-[150px]" />
+                                <SortableHeader column="exit_plaza" label="Exit Plaza" minWidthClass="min-w-[100px]" />
+                                <SortableHeader column="exit_lane" label="Exit Lane" minWidthClass="min-w-[100px]" />
+                                <SortableHeader column="vehicle_type_name" label="Vehicle Type" minWidthClass="min-w-[120px]" />
+                                <SortableHeader column="plan_rate" label="Plan Rate" minWidthClass="min-w-[100px]" />
+                                <SortableHeader column="fare_type" label="Fare Type" minWidthClass="min-w-[100px]" />
+                                <SortableHeader column="distance_miles" label="Distance (mi)" minWidthClass="min-w-[100px]" />
+                                <SortableHeader column="travel_time_minutes" label="Travel Time (min)" minWidthClass="min-w-[120px]" />
+                                <SortableHeader column="speed_mph" label="Speed (mph)" minWidthClass="min-w-[100px]" />
+                                <SortableHeader column="travel_time_category" label="Travel Category" minWidthClass="min-w-[120px]" />
+                                <SortableHeader column="is_impossible_travel" label="Impossible Travel" minWidthClass="min-w-[100px]" />
+                                <SortableHeader column="is_rapid_succession" label="Rapid Succession" minWidthClass="min-w-[120px]" />
+                                <SortableHeader column="flag_rush_hour" label="Rush Hour" minWidthClass="min-w-[100px]" />
+                                <SortableHeader column="flag_is_weekend" label="Weekend" minWidthClass="min-w-[100px]" />
+                                <SortableHeader column="flag_is_holiday" label="Holiday" minWidthClass="min-w-[100px]" />
+                                <SortableHeader column="flag_overlapping_journey" label="Overlapping Journey" minWidthClass="min-w-[140px]" />
+                                <SortableHeader column="flag_driver_amount_outlier" label="Driver Amount Outlier" minWidthClass="min-w-[140px]" />
+                                <SortableHeader column="flag_route_amount_outlier" label="Route Amount Outlier" minWidthClass="min-w-[140px]" />
+                                <SortableHeader column="flag_amount_unusually_high" label="Amount Unusually High" minWidthClass="min-w-[140px]" />
+                                <SortableHeader column="flag_driver_spend_spike" label="Driver Spend Spike" minWidthClass="min-w-[140px]" />
+                                <SortableHeader column="prediction_timestamp" label="Prediction Timestamp" minWidthClass="min-w-[150px]" />
+                                <SortableHeader column="last_updated" label="Last Updated" minWidthClass="min-w-[150px]" />
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-700/50">
@@ -1492,7 +1488,7 @@ export default function App() {
                                         <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-white via-gray-100 to-gray-300 bg-clip-text text-transparent">
                                             EZ Pass Fraud Detection
                                         </h1>
-                                        <p className="text-sm text-gray-400 mt-1">New Jersey Courts - Advanced Security System</p>
+                                        <p className="text-sm text-gray-400 mt-1">New Jersey Courts</p>
                                     </div>
                                 </div>
 
