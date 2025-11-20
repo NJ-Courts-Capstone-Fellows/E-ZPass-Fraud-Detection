@@ -28,8 +28,9 @@ class FraudDetectionTrainer:
             *
         FROM 
             `{self.bq_table}`
-        LIMIT 10000
+        LIMIT 1000000
         """
+        
         
         print("Loading features from BigQuery...")
         df = client.query(query).to_dataframe()
@@ -38,29 +39,29 @@ class FraudDetectionTrainer:
         return df
     
     def preprocess_features(self, df):
-        # Identify ID columns (non-features)
-        id_cols = []
+        # Identify columns to exclude from training (IDs and flags)
+        exclude_cols = []
         if 'transaction_id' in df.columns:
-            id_cols.append('transaction_id')
+            exclude_cols.append('transaction_id')
         if 'tag_plate_number' in df.columns:
-            id_cols.append('tag_plate_number')
+            exclude_cols.append('tag_plate_number')
         if 'last_updated' in df.columns:
-            id_cols.append('last_updated')
+            exclude_cols.append('last_updated')
         if 'source_file' in df.columns:
-            id_cols.append('source_file')
-        feature_cols = [col for col in df.columns if col not in id_cols]
-
+            exclude_cols.append('source_file')
+        
+        # Exclude flag columns from training
         flag_cols = [col for col in df.columns if col.startswith('flag_')]
+        exclude_cols.extend(flag_cols)
+        
+        # Get feature columns (everything except excluded columns)
+        feature_cols = [col for col in df.columns if col not in exclude_cols]
 
-        # Get all columns except IDs
-        nonid_feature_cols = [col for col in df.columns if col not in id_cols]
-
-        print(f"Flag columns: {flag_cols}")
-        print(f"ID columns: {id_cols}")
-        print(f"Non-ID feature columns: {nonid_feature_cols}")
+        print(f"Excluded columns (IDs + Flags): {exclude_cols}")
+        print(f"Training feature columns: {feature_cols}")
 
         # Extract features
-        X = df[nonid_feature_cols].copy()
+        X = df[feature_cols].copy()
 
         # Select only numeric columns before any operations
         numeric_cols = X.select_dtypes(include=['int64', 'float64', 'int32', 'float32']).columns
@@ -76,24 +77,21 @@ class FraudDetectionTrainer:
         scaler = StandardScaler()
         X_scaled = scaler.fit_transform(X_numeric)
 
-        # Return IDs
-        if id_cols:
+        # Create IDs dataframe
+        id_cols = ['transaction_id', 'tag_plate_number']
+        if all(col in df.columns for col in id_cols):
             df_ids = df[id_cols].copy()
-            
         else:
             # If no ID columns, create a simple index
             df_ids = pd.DataFrame({
                 'transaction_id': [f"txn_{i}" for i in range(len(df))],
                 'tag_plate_number': ['unknown'] * len(df),
             })
-
-        if flag_cols:
-            for flag_col in flag_cols:
-                df_ids[flag_col] = df[flag_col].values
         
-        print(f"DF IDs: {df[id_cols].head()}")
+        print(f"DF IDs: {df_ids.head()}")
         
-        return X_scaled, scaler, feature_cols, df_ids
+        # Return the original dataframe as well for predictions
+        return X_scaled, scaler, feature_cols, df_ids, df
     
     def train_isolation_forest(self, X_scaled, contamination=0.01):
         """Train Isolation Forest for anomaly detection"""
@@ -108,18 +106,19 @@ class FraudDetectionTrainer:
             random_state=42,
             n_estimators=100,
             max_samples='auto',
-            n_jobs=-1
+            n_jobs=2
         )
         
         model.fit(X_scaled)
         training_time = time.time() - start_time
         
-        # Get anomaly scores
+        # Get anomaly scores from Isolation Forest
+        # Isolation Forest returns:
+        # - Negative scores (< 0): Anomalies
+        # - Positive scores (> 0): Normal transactions
+        # We keep the original scores (no negation)
         anomaly_scores = model.decision_function(X_scaled)
-        # < -0.1: Highly anomalous
-        # -0.1 to 0: Suspicious
-        # 0 to 0.1: Normal
-        # > 0.1: Very typical
+        
         predictions = model.predict(X_scaled)  
         
         # Calculate metrics
@@ -146,6 +145,7 @@ class FraudDetectionTrainer:
         print(f"  Samples: {len(X_scaled):,}")
         print(f"  Anomalies: {n_anomalies:,} ({anomaly_rate*100:.2f}%)")
         print(f"  Score range: [{anomaly_scores.min():.3f}, {anomaly_scores.max():.3f}]")
+        print(f"  Score interpretation: Values lower than 0 = More anomalous")
         
         return model, anomaly_scores, predictions, metrics
     
@@ -182,30 +182,61 @@ class FraudDetectionTrainer:
         print(f"Model uploaded to Vertex AI: {model.resource_name}")
         return model
         
-    def write_predictions_to_bigquery(self, df_ids, predictions, anomaly_scores, output_table):
-        """Write predictions back to BigQuery"""
+    def write_predictions_to_bigquery(self, df_original, predictions, anomaly_scores, output_table):
+        """Write predictions back to BigQuery with all features"""
         from google.cloud import bigquery
         from datetime import datetime
         import pandas as pd
         
-        results_df = df_ids.copy()
+        # Start with original data that has all features
+        results_df = df_original.copy()
+        
+        # Add prediction columns
         results_df['is_anomaly'] = (predictions == -1).astype(int)
-        results_df['anomaly_score'] = anomaly_scores.astype(float)
+        results_df['ml_anomaly_score'] = anomaly_scores.astype(float)
         results_df['prediction_timestamp'] = datetime.now()
         
-        # Keep only needed columns
-        columns = ['transaction_id', 'tag_plate_number',
-                'last_updated', 'source_file',
-                'flag_is_weekend', 'flag_is_out_of_state', 'flag_is_vehicle_type_gt2', 'flag_is_holiday',
-                'is_anomaly', 'anomaly_score', 'prediction_timestamp']
-        final_df = results_df[[col for col in columns if col in results_df.columns]]
+        # Define expected columns based on BigQuery schema (order doesn't matter)
+        # NOTE: flag_rush_hour and flag_is_weekend are excluded from training and predictions
+        expected_cols = [
+            'transaction_id',
+            # Financial
+            'amount',
+            # Velocity & Travel Features
+            'distance_miles', 'travel_time_minutes', 'speed_mph',
+            'overlapping_journey_duration_minutes',
+            # Driver Rolling Stats
+            'driver_amount_last_30txn_avg', 'driver_amount_last_30txn_std',
+            'driver_amount_last_30txn_count', 'driver_daily_txn_count',
+            # Gold Layer: Driver Features
+            'driver_amount_modified_z_score', 'amount_deviation_from_avg_pct',
+            'amount_deviation_from_median_pct', 'driver_today_spend', 'driver_avg_daily_spend_30d',
+            # Gold Layer: Route Features
+            'route_amount_z_score',
+            # Time & Context
+            'exit_hour',
+            # Vehicle
+            'vehicle_type_code',
+            # Encoded Categorical Features
+            'route_name_freq_encoded', 'entry_plaza_freq_encoded',
+            'exit_plaza_freq_encoded', 'vehicle_type_freq_encoded', 'agency_freq_encoded',
+            'travel_time_of_day_freq_encoded',
+            # ML Prediction Columns
+            'is_anomaly', 'ml_anomaly_score', 'prediction_timestamp'
+        ]
         
+        # Only keep columns that exist in both the dataframe and expected schema
+        available_cols = [col for col in expected_cols if col in results_df.columns]
+        final_df = results_df[available_cols].copy()
         
-        print(f"Predictions dataframe:")
-        print(f"  Shape: {results_df.shape}")
-        print(f"  Columns: {results_df.columns.tolist()}")
-        print(f"  Dtypes:\n{results_df.dtypes}")
-        print(f"  Sample:\n{results_df.head(3)}")
+        print(f"Predictions dataframe (before upload):")
+        print(f"  Shape: {final_df.shape}")
+        print(f"  Columns: {final_df.columns.tolist()}")
+        print(f"  Expected columns: {len(expected_cols)}, Available: {len(available_cols)}")
+        if len(available_cols) < len(expected_cols):
+            missing = set(expected_cols) - set(available_cols)
+            print(f"  WARNING: Missing columns: {missing}")
+        print(f"  Sample:\n{final_df.head(3)}")
         
         # Write to BigQuery
         client = bigquery.Client(project=self.project_id)
@@ -214,14 +245,14 @@ class FraudDetectionTrainer:
         )
         
         job = client.load_table_from_dataframe(
-            results_df, output_table, job_config=job_config
+            final_df, output_table, job_config=job_config
         )
         job.result()
         
         print(f"✓ Predictions written to {output_table}")
-        print(f"  Total rows: {len(results_df):,}")
-        print(f"  Anomalies detected: {sum(results_df['is_anomaly']):,}")
-        print(f"  Anomaly rate: {sum(results_df['is_anomaly']) / len(results_df) * 100:.2f}%")
+        print(f"  Total rows: {len(final_df):,}")
+        print(f"  Anomalies detected: {sum(final_df['is_anomaly']):,}")
+        print(f"  Anomaly rate: {sum(final_df['is_anomaly']) / len(final_df) * 100:.2f}%")
     
     def log_training_metrics(self, metrics, model_type="isolation_forest"):
         """Save training metrics to BigQuery"""
@@ -263,7 +294,7 @@ class FraudDetectionTrainer:
         
         # 2. Preprocess
         print("\n[2/6] Preprocessing features")
-        X_scaled, scaler, feature_cols, df_ids = self.preprocess_features(df)
+        X_scaled, scaler, feature_cols, df_ids, df_original = self.preprocess_features(df)
         
         # 3. Train Isolation Forest
         print("\n[3/6] Training Isolation Forest")
@@ -282,7 +313,7 @@ class FraudDetectionTrainer:
         # 6. Write predictions to BigQuery
         print("\n[6/6] Writing predictions to BigQuery")
         output_table = f"{self.project_id}.ezpass_data.fraud_predictions"
-        self.write_predictions_to_bigquery(df_ids, predictions, anomaly_scores, output_table)
+        self.write_predictions_to_bigquery(df_original, predictions, anomaly_scores, output_table)
         
         # Optional: Upload to Vertex AI
         # vertex_model = self.upload_to_vertex_ai(artifacts_dir, "isolation_forest")
@@ -297,7 +328,7 @@ if __name__ == "__main__":
     trainer = FraudDetectionTrainer(
         project_id=os.environ.get("GCP_PROJECT_ID"),
         location="us-central1",
-        bq_table=f"{os.environ.get('GCP_PROJECT_ID')}.ezpass_data.silver"
+        bq_table=f"{os.environ.get('GCP_PROJECT_ID')}.ezpass_data.gold_train"
     )
     
     model, scores = trainer.run_training_pipeline()

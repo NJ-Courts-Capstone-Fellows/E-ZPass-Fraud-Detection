@@ -11,6 +11,7 @@ GCS_BUCKET = os.getenv('GCS_BUCKET_NAME')
 GCS_PROJECT_ID = os.getenv('GCS_PROJECT_ID')
 GCS_PREFIX = os.getenv('GCS_FOLDER_PREFIX_RAW', 'data/raw/')
 BIGQUERY_DATASET = os.getenv('BIGQUERY_DATASET', 'ezpass_data')
+BIGQUERY_TRAIN = os.getenv('BIGQUERY_TRAIN', 'gold_train')
 
 
 # Set timezone to Eastern Time
@@ -111,30 +112,61 @@ def create_predictions_table():
     client = bigquery.Client(project=GCS_PROJECT_ID)
     table_id = f"{GCS_PROJECT_ID}.{BIGQUERY_DATASET}.fraud_predictions"
     
-    # SIMPLIFIED - Only store predictions, not all transaction data
+    # Store predictions with key features for ML training
     schema = [
-        # ID columns
+        # Core ID
         bigquery.SchemaField("transaction_id", "STRING", mode="NULLABLE"),
-        bigquery.SchemaField("tag_plate_number", "STRING", mode="NULLABLE"),
-        bigquery.SchemaField("last_updated", "DATE", mode="NULLABLE"),
-        bigquery.SchemaField("source_file", "STRING", mode="NULLABLE"),
-
-        # Flag columns
-        bigquery.SchemaField("flag_is_weekend", "BOOLEAN", mode="NULLABLE"),
-        bigquery.SchemaField("flag_is_out_of_state", "BOOLEAN", mode="NULLABLE"),
-        bigquery.SchemaField("flag_is_vehicle_type_gt2", "BOOLEAN", mode="NULLABLE"),
-        bigquery.SchemaField("flag_is_holiday", "BOOLEAN", mode="NULLABLE"),
-
-        # Prediction columns
+        
+        # ===== FINANCIAL =====
+        bigquery.SchemaField("amount", "FLOAT64", mode="NULLABLE"),
+        
+        # ===== VELOCITY & TRAVEL FEATURES =====
+        bigquery.SchemaField("distance_miles", "FLOAT64", mode="NULLABLE"),
+        bigquery.SchemaField("travel_time_minutes", "FLOAT64", mode="NULLABLE"),
+        bigquery.SchemaField("speed_mph", "FLOAT64", mode="NULLABLE"),
+        bigquery.SchemaField("overlapping_journey_duration_minutes", "FLOAT64", mode="NULLABLE"),
+        
+        # ===== DRIVER ROLLING STATS =====
+        bigquery.SchemaField("driver_amount_last_30txn_avg", "FLOAT64", mode="NULLABLE"),
+        bigquery.SchemaField("driver_amount_last_30txn_std", "FLOAT64", mode="NULLABLE"),
+        bigquery.SchemaField("driver_amount_last_30txn_count", "INTEGER", mode="NULLABLE"),
+        bigquery.SchemaField("driver_daily_txn_count", "INTEGER", mode="NULLABLE"),
+        
+        # ===== GOLD LAYER: DRIVER FEATURES =====
+        bigquery.SchemaField("driver_amount_modified_z_score", "FLOAT64", mode="NULLABLE"),
+        bigquery.SchemaField("amount_deviation_from_avg_pct", "FLOAT64", mode="NULLABLE"),
+        bigquery.SchemaField("amount_deviation_from_median_pct", "FLOAT64", mode="NULLABLE"),
+        bigquery.SchemaField("driver_today_spend", "FLOAT64", mode="NULLABLE"),
+        bigquery.SchemaField("driver_avg_daily_spend_30d", "FLOAT64", mode="NULLABLE"),
+        
+        # ===== GOLD LAYER: ROUTE FEATURES =====
+        bigquery.SchemaField("route_amount_z_score", "FLOAT64", mode="NULLABLE"),
+        
+        # ===== TIME & CONTEXT =====
+        bigquery.SchemaField("exit_hour", "INTEGER", mode="NULLABLE"),
+        
+        # ===== VEHICLE =====
+        bigquery.SchemaField("vehicle_type_code", "STRING", mode="NULLABLE"),
+        
+        # ===== ENCODED CATEGORICAL FEATURES =====
+        bigquery.SchemaField("route_name_freq_encoded", "INTEGER", mode="NULLABLE"),
+        bigquery.SchemaField("entry_plaza_freq_encoded", "INTEGER", mode="NULLABLE"),
+        bigquery.SchemaField("exit_plaza_freq_encoded", "INTEGER", mode="NULLABLE"),
+        bigquery.SchemaField("vehicle_type_freq_encoded", "INTEGER", mode="NULLABLE"),
+        bigquery.SchemaField("agency_freq_encoded", "INTEGER", mode="NULLABLE"),
+        bigquery.SchemaField("travel_time_of_day_freq_encoded", "INTEGER", mode="NULLABLE"),
+        
+        # ===== ML PREDICTION COLUMNS =====
         bigquery.SchemaField("is_anomaly", "INTEGER", mode="REQUIRED"),
-        bigquery.SchemaField("anomaly_score", "FLOAT64", mode="REQUIRED"),
-        bigquery.SchemaField("prediction_timestamp", "TIMESTAMP", mode="REQUIRED"),  # When prediction was made
+        bigquery.SchemaField("ml_anomaly_score", "FLOAT64", mode="REQUIRED"),
+        bigquery.SchemaField("prediction_timestamp", "TIMESTAMP", mode="REQUIRED"),
     ]
     
     try:
         table = client.get_table(table_id)
         print(f"✓ Table already exists: {table_id}")
         print(f"  Total rows: {table.num_rows:,}")
+        print(f"⚠ WARNING: If schema doesn't match, manually delete the table in BigQuery console")
     except Exception:
         print(f"Creating new table: {table_id}")
         table = bigquery.Table(table_id, schema=schema)
@@ -165,7 +197,7 @@ def run_fraud_training():
     trainer = FraudDetectionTrainer(
         project_id=GCS_PROJECT_ID,
         location="us-central1",
-        bq_table=f"{GCS_PROJECT_ID}.{BIGQUERY_DATASET}.silver"
+        bq_table=f"{GCS_PROJECT_ID}.{BIGQUERY_DATASET}.{BIGQUERY_TRAIN}"
     )
     
     trainer.run_training_pipeline()
