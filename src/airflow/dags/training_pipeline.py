@@ -102,6 +102,25 @@ def create_training_metrics_table():
     
     return table_id
 
+def delete_predictions_table():
+    """Delete fraud_predictions table if it exists"""
+    from google.cloud import bigquery
+    
+    if not GCS_PROJECT_ID:
+        raise ValueError("GCS_PROJECT_ID must be set")
+    
+    client = bigquery.Client(project=GCS_PROJECT_ID)
+    table_id = f"{GCS_PROJECT_ID}.{BIGQUERY_DATASET}.fraud_predictions"
+    
+    try:
+        client.delete_table(table_id, not_found_ok=True)
+        print(f"✓ Deleted table: {table_id}")
+    except Exception as e:
+        print(f"⚠ Could not delete table {table_id}: {e}")
+        raise
+    
+    return table_id
+
 def create_predictions_table():
     """Create fraud_predictions table if it doesn't exist"""
     from google.cloud import bigquery
@@ -222,6 +241,12 @@ with DAG(
         task_id='create_training_metrics_table',
         python_callable=create_training_metrics_table
     )
+    
+    delete_predictions_table_task = PythonOperator(
+        task_id='delete_predictions_table',
+        python_callable=delete_predictions_table
+    )
+    
     create_predictions_table_task = PythonOperator(
         task_id='create_predictions_table',
         python_callable=create_predictions_table
@@ -232,4 +257,4 @@ with DAG(
         python_callable=run_fraud_training
     )
     
-    create_dataset_task >> create_training_metrics_table_task >> create_predictions_table_task >> train_fraud_model_task
+    delete_predictions_table_task >> create_dataset_task >> create_training_metrics_table_task >> create_predictions_table_task >> train_fraud_model_task
