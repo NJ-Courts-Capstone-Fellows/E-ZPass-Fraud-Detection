@@ -358,9 +358,10 @@ const BarChart = () => {
         const ctx = chartRef.current.getContext('2d');
         
         // Destroy existing chart if it exists
-        if (chartInstanceRef.current) {
-            chartInstanceRef.current.destroy();
-        }
+        // Fully destroy ANY existing chart bound to this canvas
+        Chart.getChart(chartRef.current)?.destroy();
+        chartInstanceRef.current = null;
+
         
         const gradient1 = ctx.createLinearGradient(0, 0, 0, 400);
         gradient1.addColorStop(0, 'rgba(20, 184, 166, 0.8)');
@@ -498,9 +499,9 @@ const CategoryChart = () => {
         if (!chartRef.current || !chartData || loading) return;
 
         // Destroy existing chart if it exists
-        if (chartInstanceRef.current) {
-            chartInstanceRef.current.destroy();
-        }
+        Chart.getChart(chartRef.current)?.destroy();
+        chartInstanceRef.current = null;
+
 
         // Don't render chart if no data
         if (chartData.labels.length === 0) {
@@ -587,67 +588,84 @@ const CategoryChart = () => {
     return <div className="h-80 w-full flex justify-center items-center"><canvas ref={chartRef}></canvas></div>;
 };
 
-const SeverityChart = () => {
+const SeverityChart = () => { 
     const chartRef = useRef(null);
+    const [chartInstance, setChartInstance] = useState(null);
+
     useEffect(() => {
-        const chart = new Chart(chartRef.current, {
-            type: 'doughnut',
-            data: {
-                labels: ['High', 'Medium', 'Low'],
-                datasets: [{
-                    label: ' Severity',
-                    data: [25, 35, 40],
-                    backgroundColor: [
-                        'rgba(239, 68, 68, 0.8)',
-                        'rgba(251, 146, 60, 0.8)',
-                        'rgba(34, 197, 94, 0.8)'
-                    ],
-                    borderColor: 'rgba(15, 23, 42, 0.8)',
-                    borderWidth: 3,
-                    hoverOffset: 20,
-                    hoverBorderColor: '#fff',
-                    hoverBorderWidth: 3
-                }]
-            },
-            options: {
-                ...defaultChartOptions,
-                cutout: '65%',
-                scales: { x: { display: false }, y: { display: false } },
-                plugins: {
-                    legend: {
-                        position: 'bottom',
-                        labels: { 
-                            color: '#e5e7eb', 
-                            font: { family: "'Inter', sans-serif", size: 12, weight: '500' },
-                            padding: 20,
-                            usePointStyle: true,
-                            pointStyle: 'circle'
-                        }
+        fetch(`${apiUrl}/api/charts/severity`)
+            .then(res => res.json())
+            .then(apiData => {
+                const severityOrder = ["Critical Risk", "Medium Risk", "Low Risk", "No Risk"];
+
+                const labels = severityOrder;
+                const values = severityOrder.map(
+                    key => apiData.data.find(d => d.severity === key)?.count || 0
+                );
+
+                const bgColors = [
+                    "rgba(239, 68, 68, 0.8)",   // High
+                    "rgba(251, 146, 60, 0.8)",  // Medium
+                    "rgba(34, 197, 94, 0.8)",   // Low
+                    "rgba(148, 163, 184, 0.8)"  // No Risk (gray)
+                ];
+
+                Chart.getChart(chartRef.current)?.destroy();
+
+
+                const newChart = new Chart(chartRef.current, {
+                    type: 'doughnut',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Severity',
+                            data: values,
+                            backgroundColor: bgColors,
+                            borderColor: 'rgba(15, 23, 42, 0.8)',
+                            borderWidth: 3,
+                            hoverOffset: 20
+                        }]
                     },
-                    tooltip: {
-                        backgroundColor: 'rgba(15, 23, 42, 0.95)',
-                        titleColor: '#f1f5f9',
-                        bodyColor: '#cbd5e1',
-                        borderColor: '#334155',
-                        borderWidth: 1,
-                        padding: 12,
-                        callbacks: {
-                            label: function(context) {
-                                let label = context.label || '';
-                                let value = context.parsed || 0;
-                                let total = context.dataset.data.reduce((a, b) => a + b, 0);
-                                let percentage = ((value / total) * 100).toFixed(1);
-                                return `${label}: ${value} (${percentage}%)`;
+                    options: {
+                        cutout: '65%',
+                        scales: { x: { display: false }, y: { display: false } },
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: {
+                                    color: '#e5e7eb',
+                                    usePointStyle: true,
+                                    pointStyle: 'circle'
+                                }
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        let label = context.label || '';
+                                        let value = context.parsed || 0;
+                                        let total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                        let percentage = total ? ((value / total) * 100).toFixed(1) : 0;
+                                        return `${label}: ${value} (${percentage}%)`;
+                                    }
+                                }
                             }
                         }
                     }
-                }
-            }
-        });
-        return () => chart.destroy();
+                });
+
+                setChartInstance(newChart);
+            });
+
+        return () => chartInstance?.destroy();
     }, []);
-    return <div className="h-80 w-full flex justify-center items-center"><canvas ref={chartRef}></canvas></div>;
+
+    return (
+        <div className="h-80 w-full flex justify-center items-center">
+            <canvas ref={chartRef}></canvas>
+        </div>
+    );
 };
+
 
 // --- Risk Gauge Component ---
 
@@ -728,7 +746,7 @@ const DashboardView = ({ setActiveView }) => {
                 setMetrics(metricsData);
                 // Get top 3 most recent flagged transactions
                 const recent = alertsData
-                    .filter(txn => txn.flag_fraud === true || txn.status === 'Flagged' || txn.status === 'Investigating')
+                    .filter(txn => txn.is_anomaly === 1)
                     .slice(0, 3);
                 setRecentFlaggedTransactions(recent);
             } catch (error) {

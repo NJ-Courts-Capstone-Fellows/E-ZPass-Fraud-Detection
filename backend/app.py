@@ -18,7 +18,7 @@ CORS(app)
 def all_transactions():
     query = """
     SELECT * 
-    FROM `njc-ezpass.ezpass_data.gold_automation`
+    FROM `njc-ezpass.ezpass_data.master_viz`
     ORDER BY transaction_date DESC
     """
     results = client.query(query).result()
@@ -30,8 +30,8 @@ def all_transactions():
 def alerts():
     query = """
     SELECT * 
-    FROM `njc-ezpass.ezpass_data.gold_automation` 
-    WHERE flag_fraud = TRUE OR threat_severity IS NOT NULL 
+    FROM `njc-ezpass.ezpass_data.master_viz` 
+    WHERE is_anomaly = 1
     ORDER BY transaction_date DESC
     LIMIT 100
     """
@@ -45,12 +45,12 @@ def metrics():
     query = """
     SELECT
         COUNT(*) AS total_transactions,
-        SUM(CASE WHEN flag_fraud = TRUE THEN 1 ELSE 0 END) AS total_flagged,
-        SUM(amount) AS total_amount,
-        SUM(CASE WHEN flag_fraud = TRUE AND EXTRACT(YEAR FROM transaction_date) = EXTRACT(YEAR FROM CURRENT_DATE()) THEN 1 ELSE 0 END) AS total_alerts_ytd,
-        SUM(CASE WHEN flag_fraud = TRUE AND EXTRACT(YEAR FROM transaction_date) = EXTRACT(YEAR FROM CURRENT_DATE()) 
+        SUM(CASE WHEN is_anomaly = 1 THEN 1 ELSE 0 END) AS total_flagged,
+        SUM(CASE WHEN is_anomaly = 1 THEN amount ELSE 0 END) AS total_amount,
+        SUM(CASE WHEN is_anomaly = 1 AND EXTRACT(YEAR FROM transaction_date) = EXTRACT(YEAR FROM CURRENT_DATE()) THEN 1 ELSE 0 END) AS total_alerts_ytd,
+        SUM(CASE WHEN is_anomaly = 1 AND EXTRACT(YEAR FROM transaction_date) = EXTRACT(YEAR FROM CURRENT_DATE()) 
                  AND EXTRACT(MONTH FROM transaction_date) = EXTRACT(MONTH FROM CURRENT_DATE()) THEN 1 ELSE 0 END) AS detected_frauds_current_month
-    FROM `njc-ezpass.ezpass_data.gold_automation`
+    FROM `njc-ezpass.ezpass_data.master_viz`
     """
     try:
         results = client.query(query).result()
@@ -72,56 +72,59 @@ def metrics():
             "detected_frauds_current_month": 0
         }), 500
 
-#Fraud by Category for chart
 @app.route("/api/charts/category")
 def category_chart():
     query = """
-    WITH fraud_transactions AS (
-        SELECT 
-            triggered_flags
-        FROM `njc-ezpass.ezpass_data.gold_automation`
-        WHERE flag_fraud = TRUE AND triggered_flags IS NOT NULL AND triggered_flags != ''
-    ),
-    split_flags AS (
-        SELECT 
-            TRIM(REPLACE(REPLACE(REPLACE(REPLACE(flag, '"', ''), '[', ''), ']', ''), ' ', '')) AS category
-        FROM fraud_transactions,
-        UNNEST(SPLIT(triggered_flags, ',')) AS flag
-        WHERE TRIM(flag) != '' AND TRIM(flag) != 'null'
-    )
-    SELECT 
-        category,
-        COUNT(*) AS count
-    FROM split_flags
-    WHERE category IS NOT NULL AND category != ''
-    GROUP BY category
-    HAVING COUNT(*) > 0
-    ORDER BY count DESC
+        WITH unpivoted AS (
+            SELECT
+                f.flag_label AS category
+            FROM `njc-ezpass.ezpass_data.master_viz`,
+            UNNEST([
+                STRUCT('Rush Hour' AS flag_label, flag_rush_hour AS flag_value),
+                STRUCT('Weekend' AS flag_label, flag_is_weekend AS flag_value),
+                STRUCT('Holiday' AS flag_label, flag_is_holiday AS flag_value),
+                STRUCT('Overlapping Journey' AS flag_label, flag_overlapping_journey AS flag_value),
+                STRUCT('Driver Amount Outlier' AS flag_label, flag_driver_amount_outlier AS flag_value),
+                STRUCT('Route Amount Outlier' AS flag_label, flag_route_amount_outlier AS flag_value),
+                STRUCT('Amount Unusually High' AS flag_label, flag_amount_unusually_high AS flag_value),
+                STRUCT('Driver Spend Spike' AS flag_label, flag_driver_spend_spike AS flag_value)
+            ]) AS f
+            WHERE is_anomaly = 1
+                AND f.flag_value IS TRUE
+            )
+            SELECT category, COUNT(*) AS count
+            FROM unpivoted
+            GROUP BY category
+            ORDER BY count DESC;
+
     """
     try:
         results = client.query(query).result()
-        data = []
-        for row in results:
-            category = str(row["category"]).strip() if row["category"] else None
-            if category and category.lower() not in ['null', 'none', '']:
-                data.append({"category": category, "count": int(row["count"])})
+        data = [{"category": row["category"], "count": row["count"]} for row in results]
         return jsonify({"data": data})
     except Exception as e:
-        print(f"Error fetching category chart data: {str(e)}")
-        return jsonify({"data": [], "error": str(e)}), 500
+        print("BACKEND ERROR:", e)
+        return jsonify({"error": str(e), "data": []}), 500
+
 
 #Threat Severity for chart
 @app.route("/api/charts/severity")
 def severity_chart():
     query = """
-    SELECT threat_severity, COUNT(*) AS count
-    FROM `njc-ezpass.ezpass_data.gold_automation`
-    WHERE threat_severity IS NOT NULL
-    GROUP BY threat_severity
+    SELECT ml_predicted_category AS severity, COUNT(*) AS count
+    FROM `njc-ezpass.ezpass_data.master_viz`
+    WHERE ml_predicted_category IS NOT NULL
+    GROUP BY ml_predicted_category
     """
     results = client.query(query).result()
-    data = [{"severity": row["threat_severity"], "count": row["count"]} for row in results]
+
+    data = [
+        {"severity": row["severity"], "count": row["count"]}
+        for row in results
+    ]
+
     return jsonify({"data": data})
+
 
 #Monthly transaction analysis for bar chart
 @app.route("/api/charts/monthly")
@@ -133,8 +136,8 @@ def monthly_chart():
             EXTRACT(YEAR FROM DATE(transaction_date)) AS year,
             EXTRACT(MONTH FROM DATE(transaction_date)) AS month_num,
             COUNT(*) AS total_transactions,
-            SUM(CASE WHEN flag_fraud = TRUE THEN 1 ELSE 0 END) AS fraud_alerts
-        FROM `njc-ezpass.ezpass_data.gold_automation`
+            SUM(CASE WHEN is_anomaly = 1 THEN 1 ELSE 0 END) AS fraud_alerts
+        FROM `njc-ezpass.ezpass_data.master_viz`
         WHERE transaction_date IS NOT NULL
         GROUP BY year, month_num, month
         ORDER BY year DESC, month_num DESC
