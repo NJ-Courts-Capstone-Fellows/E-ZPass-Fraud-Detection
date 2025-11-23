@@ -1025,6 +1025,47 @@ const ChartsView = () => {
 };
 
 const DataView = () => {
+    // Color mapping for ML prediction categories - matching CategoryChart colors and risk levels
+    const getMLPredictionColor = (category) => {
+        if (!category || category === '-') return null;
+        const colorMap = {
+            // Risk Levels (matching ScatterPlot colors)
+            'Critical Risk': 'rgb(220, 38, 38)', // Red
+            'High Risk': 'rgb(255, 140, 0)', // Orange/Coral
+            'Medium Risk': 'rgb(59, 130, 246)', // Blue
+            'Low Risk': 'rgb(34, 197, 94)', // Green
+            // Fraud Categories
+            'Holiday': 'rgba(239, 68, 68, 1)', // Red
+            'Out of State': 'rgba(14, 165, 233, 1)', // Sky Blue
+            'Vehicle Type > 2': 'rgba(168, 85, 247, 1)', // Purple
+            'Weekend': 'rgba(236, 72, 153, 1)', // Pink
+            'Driver Amount Outlier': 'rgba(59, 130, 246, 1)', // Blue
+            'Rush Hour': 'rgba(34, 197, 94, 1)', // Green
+            'Amount Unusually High': 'rgba(251, 146, 60, 1)', // Orange
+            'Route Amount Outlier': 'rgba(139, 92, 246, 1)', // Violet
+            'Driver Spend Spike': 'rgba(149, 70, 167, 1)', // Purple
+            'Overlapping Journey': 'rgba(245, 158, 11, 1)', // Amber
+            'Possible Cloning': 'rgba(168, 85, 247, 1)', // Purple
+            'Toll Evasion': 'rgba(239, 68, 68, 1)', // Red
+            'Account Takeover': 'rgba(220, 38, 38, 1)', // Dark Red
+            'Card Skimming': 'rgba(236, 72, 153, 1)' // Pink
+        };
+        // Try exact match first
+        if (colorMap[category]) return colorMap[category];
+        // Try case-insensitive match
+        const categoryLower = category.toLowerCase();
+        for (const [key, value] of Object.entries(colorMap)) {
+            if (key.toLowerCase() === categoryLower) return value;
+        }
+        // Check if it contains risk level keywords
+        if (categoryLower.includes('critical')) return 'rgb(220, 38, 38)'; // Red
+        if (categoryLower.includes('high')) return 'rgb(255, 140, 0)'; // Orange
+        if (categoryLower.includes('medium')) return 'rgb(59, 130, 246)'; // Blue
+        if (categoryLower.includes('low')) return 'rgb(34, 197, 94)'; // Green
+        // Fallback to a default color
+        return 'rgba(149, 70, 167, 1)'; // Default purple
+    };
+
     const [searchTerm, setSearchTerm] = useState('');
     const [filterStatus, setFilterStatus] = useState('all');
     const [filterMLCategory, setFilterMLCategory] = useState('Critical Risk');
@@ -1409,11 +1450,15 @@ const DataView = () => {
                                         <td className="px-4 py-4 whitespace-nowrap text-gray-300 dark:text-gray-300 text-gray-700 text-base">
                                             {ruleBasedScore}
                                         </td>
-                                        <td className="px-4 py-4 whitespace-nowrap text-gray-300 dark:text-gray-300 text-gray-700 text-base">
-                                            {mlPredictedScore}
+                                        <td className="px-4 py-4 whitespace-nowrap text-base">
+                                            <span 
+                                                style={{ color: getMLPredictionColor(mlPredictedCategory) || 'inherit' }}
+                                            >
+                                                {mlPredictedScore}
+                                            </span>
                                         </td>
                                         <td className="px-4 py-4 whitespace-nowrap">
-                                            <span className="font-semibold dark:text-white text-gray-900 text-base">{amount}</span>
+                                            <span className="font-semibold text-black dark:text-white text-base">{amount}</span>
                                         </td>
                                         <td className="px-4 py-4 whitespace-nowrap">
                                             <span className="font-mono text-gray-100 dark:text-gray-100 text-gray-800 font-medium text-sm">{transactionId}</span>
