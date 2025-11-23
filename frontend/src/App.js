@@ -1537,65 +1537,17 @@ const DataView = () => {
     );
 };
 
-// --- Theme Toggle Icon Components ---
-const SunIcon = () => (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-    </svg>
-);
-
-const MoonIcon = () => (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-    </svg>
-);
-
 // --- Main App Component ---
 
 export default function App() {
     const [activeView, setActiveView] = useState('dashboard');
-    const [isDarkMode, setIsDarkMode] = useState(() => {
-        // Check localStorage first, then default to dark mode
-        const saved = localStorage.getItem('theme');
-        if (saved) {
-            return saved === 'dark';
-        }
-        return true; // Default to dark mode
-    });
-
-    useEffect(() => {
-        // Apply theme class to document root
-        if (isDarkMode) {
-            document.documentElement.classList.add('dark');
-            localStorage.setItem('theme', 'dark');
-        } else {
-            document.documentElement.classList.remove('dark');
-            localStorage.setItem('theme', 'light');
-        }
-    }, [isDarkMode]);
-
-    const toggleTheme = () => {
-        setIsDarkMode(!isDarkMode);
-    };
 
     return (
-        <div className={`relative min-h-screen transition-colors duration-300 ${
-            isDarkMode 
-                ? 'bg-slate-950 text-gray-200' 
-                : 'bg-gray-50 text-gray-900'
-        }`} style={{ fontFamily: "'Inter', sans-serif" }}>
+        <div className="relative min-h-screen bg-slate-950 text-gray-200" style={{ fontFamily: "'Inter', sans-serif" }}>
             {/* Animated Background */}
             <div className="fixed inset-0 overflow-hidden pointer-events-none">
-                <div className={`absolute -top-1/2 -right-1/2 w-full h-full rounded-full blur-3xl animate-pulse ${
-                    isDarkMode 
-                        ? 'bg-gradient-to-br from-teal-500/10 via-cyan-500/5 to-transparent' 
-                        : 'bg-gradient-to-br from-teal-500/5 via-cyan-500/3 to-transparent'
-                }`}></div>
-                <div className={`absolute -bottom-1/2 -left-1/2 w-full h-full rounded-full blur-3xl animate-pulse ${
-                    isDarkMode 
-                        ? 'bg-gradient-to-tr from-blue-500/10 via-teal-500/5 to-transparent' 
-                        : 'bg-gradient-to-tr from-blue-500/5 via-teal-500/3 to-transparent'
-                }`} style={{animationDelay: '1s'}}></div>
+                <div className="absolute -top-1/2 -right-1/2 w-full h-full rounded-full blur-3xl animate-pulse bg-gradient-to-br from-teal-500/10 via-cyan-500/5 to-transparent"></div>
+                <div className="absolute -bottom-1/2 -left-1/2 w-full h-full rounded-full blur-3xl animate-pulse bg-gradient-to-tr from-blue-500/10 via-teal-500/5 to-transparent" style={{animationDelay: '1s'}}></div>
             </div>
 
             <div className="relative z-10 p-4 sm:p-6 lg:p-8">
