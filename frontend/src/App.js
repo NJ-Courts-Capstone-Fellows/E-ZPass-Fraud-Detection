@@ -362,8 +362,8 @@ const BarChart = () => {
         chartInstanceRef.current = null;
         
         const gradient1 = ctx.createLinearGradient(0, 0, 0, 400);
-        gradient1.addColorStop(0, 'rgba(20, 184, 166, 0.8)');
-        gradient1.addColorStop(1, 'rgba(20, 184, 166, 0.2)');
+        gradient1.addColorStop(0, 'rgba(149, 70, 167, 0.8)');
+        gradient1.addColorStop(1, 'rgba(149, 70, 167, 0.2)');
         
         const gradient2 = ctx.createLinearGradient(0, 0, 0, 400);
         gradient2.addColorStop(0, 'rgba(239, 68, 68, 0.8)');
@@ -374,11 +374,11 @@ const BarChart = () => {
                 label: 'Total Transactions',
                 data: chartData.totalTransactions,
                 backgroundColor: gradient1,
-                borderColor: 'rgba(20, 184, 166, 1)',
+                borderColor: 'rgba(149, 70, 167, 1)',
                 borderWidth: 2,
                 borderRadius: 8,
-                hoverBackgroundColor: 'rgba(20, 184, 166, 1)',
-                hoverBorderColor: 'rgba(45, 212, 191, 1)',
+                hoverBackgroundColor: 'rgba(149, 70, 167, 1)',
+                hoverBorderColor: 'rgba(149, 70, 167, 1)',
                 hoverBorderWidth: 3
             }
         ];
@@ -468,7 +468,7 @@ const CategoryChart = () => {
             'Rush Hour': 'rgba(34, 197, 94, 0.9)', // Green
             'Amount Unusually High': 'rgba(251, 146, 60, 0.9)', // Orange
             'Route Amount Outlier': 'rgba(139, 92, 246, 0.9)', // Violet
-            'Driver Spend Spike': 'rgba(20, 184, 166, 0.9)', // Teal
+            'Driver Spend Spike': 'rgba(149, 70, 167, 0.9)', // Purple
             'Overlapping Journey': 'rgba(245, 158, 11, 0.9)', // Amber
             'Possible Cloning': 'rgba(168, 85, 247, 0.9)', // Purple
             'Toll Evasion': 'rgba(239, 68, 68, 0.9)', // Red
@@ -481,7 +481,7 @@ const CategoryChart = () => {
             'rgba(34, 197, 94, 0.9)',   // Green
             'rgba(251, 146, 60, 0.9)',  // Orange
             'rgba(139, 92, 246, 0.9)',  // Violet
-            'rgba(20, 184, 166, 0.9)',  // Teal
+            'rgba(149, 70, 167, 0.9)',  // Purple
             'rgba(245, 158, 11, 0.9)',  // Amber
             'rgba(239, 68, 68, 0.9)',   // Red
             'rgba(236, 72, 153, 0.9)',  // Pink
@@ -772,18 +772,18 @@ const DashboardView = ({ setActiveView }) => {
             {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {/* Total Alerts Card */}
-                <div className={`group bg-white dark:bg-gradient-to-br dark:from-slate-800/80 dark:to-slate-800/40 backdrop-blur-sm border border-gray-200 dark:border-slate-700/50 p-6 rounded-2xl shadow-xl hover:shadow-2xl hover:border-teal-500/50 transition-all duration-300 transform hover:-translate-y-1 ${animate ? 'animate-fadeIn' : 'opacity-0'}`}>
+                <div className={`group bg-white dark:bg-white/5 backdrop-blur-md border border-gray-200 dark:border-white/10 p-6 rounded-2xl shadow-xl dark:shadow-[8px_8px_16px_rgba(0,0,0,0.3),-4px_-4px_8px_rgba(255,255,255,0.05)] hover:shadow-2xl dark:hover:shadow-[12px_12px_24px_rgba(0,0,0,0.4),-6px_-6px_12px_rgba(255,255,255,0.08)] hover:border-[#9546A7]/50 dark:hover:border-white/20 transition-all duration-300 transform hover:-translate-y-1 ${animate ? 'animate-fadeIn' : 'opacity-0'}`}>
                     <div className="flex items-center mb-4">
-                        <div className="p-3 bg-gradient-to-br from-teal-500/20 to-teal-600/10 rounded-xl ring-2 ring-teal-500/20 group-hover:ring-teal-500/40 transition-all">
+                        <div className="p-3 bg-gradient-to-br from-[#9546A7]/20 to-[#9546A7]/10 rounded-xl ring-2 ring-[#9546A7]/20 group-hover:ring-[#9546A7]/40 transition-all">
                             <ShieldIcon />
                         </div>
                     </div>
                     <h3 className="text-gray-400 dark:text-gray-400 text-gray-600 text-sm font-medium mb-1">Total Alerts (YTD)</h3>
-                    <p className="text-4xl font-bold dark:text-white text-gray-900 mb-2 bg-gradient-to-r from-teal-400 to-teal-200 dark:from-teal-400 dark:to-teal-200 from-teal-600 to-teal-700 bg-clip-text text-transparent">1,428</p>
+                    <p className="text-4xl font-bold dark:text-white text-gray-900 mb-2 bg-gradient-to-r from-[#9546A7] to-[#B873D1] dark:from-[#9546A7] dark:to-[#B873D1] bg-clip-text text-transparent">1,428</p>
                 </div>
 
                 {/* Potential Loss Card */}
-                <div className={`group bg-white dark:bg-gradient-to-br dark:from-slate-800/80 dark:to-slate-800/40 backdrop-blur-sm border border-gray-200 dark:border-slate-700/50 p-6 rounded-2xl shadow-xl hover:shadow-2xl hover:border-rose-500/50 transition-all duration-300 transform hover:-translate-y-1 ${animate ? 'animate-fadeIn' : 'opacity-0'}`} style={{animationDelay: '0.1s'}}>
+                <div className={`group bg-white dark:bg-white/5 backdrop-blur-md border border-gray-200 dark:border-white/10 p-6 rounded-2xl shadow-xl dark:shadow-[8px_8px_16px_rgba(0,0,0,0.3),-4px_-4px_8px_rgba(255,255,255,0.05)] hover:shadow-2xl dark:hover:shadow-[12px_12px_24px_rgba(0,0,0,0.4),-6px_-6px_12px_rgba(255,255,255,0.08)] hover:border-rose-500/50 dark:hover:border-white/20 transition-all duration-300 transform hover:-translate-y-1 ${animate ? 'animate-fadeIn' : 'opacity-0'}`} style={{animationDelay: '0.1s'}}>
                     <div className="flex items-center mb-4">
                         <div className="p-3 bg-gradient-to-br from-rose-500/20 to-rose-600/10 rounded-xl ring-2 ring-rose-500/20 group-hover:ring-rose-500/40 transition-all">
                             <DollarIcon />
@@ -794,7 +794,7 @@ const DashboardView = ({ setActiveView }) => {
                 </div>
 
                 {/* Detected Frauds Card */}
-                <div className={`group bg-white dark:bg-gradient-to-br dark:from-slate-800/80 dark:to-slate-800/40 backdrop-blur-sm border border-gray-200 dark:border-slate-700/50 p-6 rounded-2xl shadow-xl hover:shadow-2xl hover:border-amber-500/50 transition-all duration-300 transform hover:-translate-y-1 ${animate ? 'animate-fadeIn' : 'opacity-0'}`} style={{animationDelay: '0.2s'}}>
+                <div className={`group bg-white dark:bg-white/5 backdrop-blur-md border border-gray-200 dark:border-white/10 p-6 rounded-2xl shadow-xl dark:shadow-[8px_8px_16px_rgba(0,0,0,0.3),-4px_-4px_8px_rgba(255,255,255,0.05)] hover:shadow-2xl dark:hover:shadow-[12px_12px_24px_rgba(0,0,0,0.4),-6px_-6px_12px_rgba(255,255,255,0.08)] hover:border-amber-500/50 dark:hover:border-white/20 transition-all duration-300 transform hover:-translate-y-1 ${animate ? 'animate-fadeIn' : 'opacity-0'}`} style={{animationDelay: '0.2s'}}>
                     <div className="flex items-center mb-4">
                         <div className="p-3 bg-gradient-to-br from-amber-500/20 to-amber-600/10 rounded-xl ring-2 ring-amber-500/20 group-hover:ring-amber-500/40 transition-all">
                             <AlertIcon />
@@ -808,22 +808,16 @@ const DashboardView = ({ setActiveView }) => {
             {/* Charts Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Bar Chart */}
-                <div className="lg:col-span-2 bg-white dark:bg-gradient-to-br dark:from-slate-800/80 dark:to-slate-800/40 backdrop-blur-sm border border-gray-200 dark:border-slate-700/50 p-6 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300">
-                    <div className="flex items-center justify-between mb-6">
-                        <div>
-                            <h3 className="font-bold text-xl dark:text-white text-gray-900 mb-1">Transaction Analysis</h3>
-                            <p className="text-sm text-gray-400 dark:text-gray-400 text-gray-600">Month-over-month comparison</p>
-                        </div>
-                        <div className="flex space-x-2">
-                            <button className="px-3 py-1 text-xs font-medium bg-teal-500/20 text-teal-400 dark:text-teal-400 text-teal-600 rounded-lg hover:bg-teal-500/30 transition-colors">6M</button>
-                            <button className="px-3 py-1 text-xs font-medium bg-slate-700/50 dark:bg-slate-700/50 bg-gray-200 text-gray-400 dark:text-gray-400 text-gray-600 rounded-lg hover:bg-slate-700 dark:hover:bg-slate-700 hover:bg-gray-300 transition-colors">1Y</button>
-                        </div>
+                <div className="lg:col-span-2 bg-white dark:bg-white/5 backdrop-blur-md border border-gray-200 dark:border-white/10 p-6 rounded-2xl shadow-xl dark:shadow-[8px_8px_16px_rgba(0,0,0,0.3),-4px_-4px_8px_rgba(255,255,255,0.05)] hover:shadow-2xl dark:hover:shadow-[12px_12px_24px_rgba(0,0,0,0.4),-6px_-6px_12px_rgba(255,255,255,0.08)] transition-all duration-300">
+                    <div className="mb-6">
+                        <h3 className="font-bold text-xl dark:text-white text-gray-900 mb-1">Transaction Analysis</h3>
+                        <p className="text-sm text-gray-400 dark:text-gray-400 text-gray-600">Month-over-month comparison</p>
                     </div>
                     <BarChart />
                 </div>
 
                 {/* Alert Feed */}
-                <div className="bg-white dark:bg-gradient-to-br dark:from-slate-800/80 dark:to-slate-800/40 backdrop-blur-sm border border-gray-200 dark:border-slate-700/50 p-6 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300">
+                <div className="bg-white dark:bg-white/5 backdrop-blur-md border border-gray-200 dark:border-white/10 p-6 rounded-2xl shadow-xl dark:shadow-[8px_8px_16px_rgba(0,0,0,0.3),-4px_-4px_8px_rgba(255,255,255,0.05)] hover:shadow-2xl dark:hover:shadow-[12px_12px_24px_rgba(0,0,0,0.4),-6px_-6px_12px_rgba(255,255,255,0.08)] transition-all duration-300">
                     <div className="flex items-center justify-between mb-6">
                         <h3 className="font-bold text-xl dark:text-white text-gray-900">Recent Flagged Transactions</h3>
                         <span className="px-2 py-1 bg-amber-500/20 text-amber-400 dark:text-amber-400 text-amber-600 text-xs font-semibold rounded-full">{recentFlaggedTransactions.length} New</span>
@@ -838,7 +832,7 @@ const DashboardView = ({ setActiveView }) => {
                                 <div className="flex items-start justify-between">
                                     <div className="flex-1">
                                         <div className="flex items-center gap-2 mb-2">
-                                            <span className="font-mono text-xs text-teal-400 dark:text-teal-400 text-teal-600 font-semibold">{txn.id}</span>
+                                            <span className="font-mono text-xs text-[#9546A7] dark:text-[#9546A7] font-semibold">{txn.id}</span>
                                             <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
                                                 txn.status === 'Investigating' ? 'bg-red-500/20 text-red-400 dark:text-red-400 text-red-600' : 'bg-amber-500/20 text-amber-400 dark:text-amber-400 text-amber-600'
                                             }`}>
@@ -862,7 +856,7 @@ const DashboardView = ({ setActiveView }) => {
                         ))}
                         <button 
                             onClick={() => setActiveView('data')}
-                            className="w-full py-3 text-sm font-medium text-teal-400 dark:text-teal-400 text-teal-600 hover:text-teal-300 dark:hover:text-teal-300 hover:text-teal-700 transition-colors border border-slate-700 dark:border-slate-700 border-gray-300 hover:border-teal-500/50 dark:hover:border-teal-500/50 hover:border-teal-600 rounded-xl"
+                            className="w-full py-3 text-sm font-medium text-[#9546A7] dark:text-[#9546A7] hover:text-[#B873D1] dark:hover:text-[#B873D1] hover:text-[#7A3A8F] transition-colors border border-slate-700 dark:border-white/10 border-gray-300 hover:border-[#9546A7]/50 dark:hover:border-white/20 hover:border-[#9546A7] rounded-xl"
                         >
                             View All Alerts →
                         </button>
@@ -873,7 +867,7 @@ const DashboardView = ({ setActiveView }) => {
             {/* Bottom Charts */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Category Chart */}
-                <div className="bg-white dark:bg-gradient-to-br dark:from-slate-800/80 dark:to-slate-800/40 backdrop-blur-sm border border-gray-200 dark:border-slate-700/50 p-6 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300">
+                <div className="bg-white dark:bg-white/5 backdrop-blur-md border border-gray-200 dark:border-white/10 p-6 rounded-2xl shadow-xl dark:shadow-[8px_8px_16px_rgba(0,0,0,0.3),-4px_-4px_8px_rgba(255,255,255,0.05)] hover:shadow-2xl dark:hover:shadow-[12px_12px_24px_rgba(0,0,0,0.4),-6px_-6px_12px_rgba(255,255,255,0.08)] transition-all duration-300">
                     <div className="mb-6">
                         <h3 className="font-bold text-xl dark:text-white text-gray-900 mb-1">Fraud by Category</h3>
                         <p className="text-sm text-gray-400 dark:text-gray-400 text-gray-600">Distribution across incident types</p>
@@ -882,7 +876,7 @@ const DashboardView = ({ setActiveView }) => {
                 </div>
 
                 {/* Severity Chart */}
-                <div className="bg-white dark:bg-gradient-to-br dark:from-slate-800/80 dark:to-slate-800/40 backdrop-blur-sm border border-gray-200 dark:border-slate-700/50 p-6 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300">
+                <div className="bg-white dark:bg-white/5 backdrop-blur-md border border-gray-200 dark:border-white/10 p-6 rounded-2xl shadow-xl dark:shadow-[8px_8px_16px_rgba(0,0,0,0.3),-4px_-4px_8px_rgba(255,255,255,0.05)] hover:shadow-2xl dark:hover:shadow-[12px_12px_24px_rgba(0,0,0,0.4),-6px_-6px_12px_rgba(255,255,255,0.08)] transition-all duration-300">
                     <div className="mb-6">
                         <h3 className="font-bold text-xl dark:text-white text-gray-900 mb-1">Threat Severity</h3>
                         <p className="text-sm text-gray-400 dark:text-gray-400 text-gray-600">Risk level distribution</p>
@@ -1023,7 +1017,7 @@ const ScatterPlot = () => {
 const ChartsView = () => {
     return (
         <div className="space-y-6">
-            <div className="bg-white dark:bg-gradient-to-br dark:from-slate-800/80 dark:to-slate-800/40 backdrop-blur-sm border border-gray-200 dark:border-slate-700/50 p-6 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300">
+            <div className="bg-white dark:bg-white/5 backdrop-blur-md border border-gray-200 dark:border-white/10 p-6 rounded-2xl shadow-xl dark:shadow-[8px_8px_16px_rgba(0,0,0,0.3),-4px_-4px_8px_rgba(255,255,255,0.05)] hover:shadow-2xl dark:hover:shadow-[12px_12px_24px_rgba(0,0,0,0.4),-6px_-6px_12px_rgba(255,255,255,0.08)] transition-all duration-300">
                 <ScatterPlot />
             </div>
         </div>
@@ -1238,7 +1232,7 @@ const DataView = () => {
     return (
         <div className="space-y-6">
             {/* Search and Filter Bar */}
-            <div className="bg-white dark:bg-gradient-to-br dark:from-slate-800/80 dark:to-slate-800/40 backdrop-blur-sm border border-gray-200 dark:border-slate-700/50 p-6 rounded-2xl shadow-xl">
+            <div className="bg-white dark:bg-white/5 backdrop-blur-md border border-gray-200 dark:border-white/10 p-6 rounded-2xl shadow-xl dark:shadow-[8px_8px_16px_rgba(0,0,0,0.3),-4px_-4px_8px_rgba(255,255,255,0.05)]">
                 <div className="flex flex-col md:flex-row gap-4">
                     <div className="flex-1 relative">
                         <input
@@ -1246,7 +1240,7 @@ const DataView = () => {
                             placeholder="Search transactions..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full bg-white dark:bg-slate-900/50 border border-gray-300 dark:border-slate-700 rounded-xl px-4 py-3 pl-11 dark:text-white text-gray-900 placeholder-gray-500 dark:placeholder-gray-500 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all"
+                            className="w-full bg-white dark:bg-white/5 dark:backdrop-blur-md border border-gray-300 dark:border-white/10 rounded-xl px-4 py-3 pl-11 dark:text-white text-gray-900 placeholder-gray-500 dark:placeholder-gray-500 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 dark:focus:border-white/20 transition-all dark:shadow-[4px_4px_8px_rgba(0,0,0,0.2),-2px_-2px_4px_rgba(255,255,255,0.03)]"
                         />
                         <div className="absolute left-3 top-3.5 text-gray-500 dark:text-gray-500 text-gray-400">
                             <SearchIcon />
@@ -1256,35 +1250,35 @@ const DataView = () => {
                         <select
                             value={filterStatus}
                             onChange={(e) => setFilterStatus(e.target.value)}
-                            className="px-4 py-3 rounded-xl text-sm font-medium bg-white dark:bg-slate-700/50 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all cursor-pointer"
+                            className="px-4 py-3 rounded-xl text-sm font-medium bg-white dark:bg-white/5 dark:backdrop-blur-md text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-white/10 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 dark:focus:border-white/20 transition-all cursor-pointer dark:shadow-[4px_4px_8px_rgba(0,0,0,0.2),-2px_-2px_4px_rgba(255,255,255,0.03)]"
                         >
-                            <option value="all" className="bg-slate-800 dark:bg-slate-800 bg-white">All Status</option>
-                            <option value="Flagged" className="bg-slate-800 dark:bg-slate-800 bg-white">Flagged</option>
-                            <option value="Investigating" className="bg-slate-800 dark:bg-slate-800 bg-white">Investigating</option>
-                            <option value="Needs Review" className="bg-slate-800 dark:bg-slate-800 bg-white">Needs Review</option>
-                            <option value="Resolved" className="bg-slate-800 dark:bg-slate-800 bg-white">Resolved</option>
-                            <option value="No Action Required" className="bg-slate-800 dark:bg-slate-800 bg-white">No Action Required</option>
+                            <option value="all" className="bg-slate-800 dark:bg-white/5 bg-white">All Status</option>
+                            <option value="Flagged" className="bg-slate-800 dark:bg-white/5 bg-white">Flagged</option>
+                            <option value="Investigating" className="bg-slate-800 dark:bg-white/5 bg-white">Investigating</option>
+                            <option value="Needs Review" className="bg-slate-800 dark:bg-white/5 bg-white">Needs Review</option>
+                            <option value="Resolved" className="bg-slate-800 dark:bg-white/5 bg-white">Resolved</option>
+                            <option value="No Action Required" className="bg-slate-800 dark:bg-white/5 bg-white">No Action Required</option>
                         </select>
                         <select
                             value={filterMLCategory}
                             onChange={(e) => setFilterMLCategory(e.target.value)}
-                            className="px-4 py-3 rounded-xl text-sm font-medium bg-white dark:bg-slate-700/50 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all cursor-pointer"
+                            className="px-4 py-3 rounded-xl text-sm font-medium bg-white dark:bg-white/5 dark:backdrop-blur-md text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-white/10 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 dark:focus:border-white/20 transition-all cursor-pointer dark:shadow-[4px_4px_8px_rgba(0,0,0,0.2),-2px_-2px_4px_rgba(255,255,255,0.03)]"
                         >
-                            <option value="all" className="bg-slate-800 dark:bg-slate-800 bg-white">All Risk Levels</option>
-                            <option value="Critical Risk" className="bg-slate-800 dark:bg-slate-800 bg-white">Critical Risk</option>
-                            <option value="High Risk" className="bg-slate-800 dark:bg-slate-800 bg-white">High Risk</option>
-                            <option value="Medium Risk" className="bg-slate-800 dark:bg-slate-800 bg-white">Medium Risk</option>
-                            <option value="Low Risk" className="bg-slate-800 dark:bg-slate-800 bg-white">Low Risk</option>
+                            <option value="all" className="bg-slate-800 dark:bg-white/5 bg-white">All Risk Levels</option>
+                            <option value="Critical Risk" className="bg-slate-800 dark:bg-white/5 bg-white">Critical Risk</option>
+                            <option value="High Risk" className="bg-slate-800 dark:bg-white/5 bg-white">High Risk</option>
+                            <option value="Medium Risk" className="bg-slate-800 dark:bg-white/5 bg-white">Medium Risk</option>
+                            <option value="Low Risk" className="bg-slate-800 dark:bg-white/5 bg-white">Low Risk</option>
                         </select>
                     </div>
                 </div>
             </div>
 
             {/* Data Table */}
-            <div className="bg-white dark:bg-gradient-to-br dark:from-slate-800/80 dark:to-slate-800/40 backdrop-blur-sm border border-gray-200 dark:border-slate-700/50 rounded-2xl shadow-xl overflow-hidden">
+            <div className="bg-white dark:bg-white/5 backdrop-blur-md border border-gray-200 dark:border-white/10 rounded-2xl shadow-xl dark:shadow-[8px_8px_16px_rgba(0,0,0,0.3),-4px_-4px_8px_rgba(255,255,255,0.05)] overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="min-w-full text-base table-auto">
-                        <thead className="bg-white dark:bg-slate-900/50 border-b border-gray-300 dark:border-slate-700">
+                        <thead className="bg-white dark:bg-white/5 border-b border-gray-300 dark:border-white/10">
                             <tr>
                                 <SortableHeader column="status" label="Status" minWidthClass="min-w-[120px]" />
                                 <SortableHeader column="ml_predicted_category" label="ML Prediction" minWidthClass="min-w-[150px]" />
@@ -1537,7 +1531,7 @@ const DataView = () => {
                 </div>
                 
                 {/* Pagination */}
-                <div className="bg-white dark:bg-slate-900/50 px-6 py-4 border-t border-gray-300 dark:border-slate-700 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="bg-white dark:bg-white/5 px-6 py-4 border-t border-gray-300 dark:border-white/10 flex flex-col sm:flex-row items-center justify-between gap-4">
                     <div className="text-sm text-gray-400 dark:text-gray-400 text-gray-600">
                         Showing <span className="font-semibold dark:text-white text-gray-900">
                             {paginatedData.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0}
@@ -1551,8 +1545,8 @@ const DataView = () => {
                             disabled={currentPage === 1 || totalPages === 0}
                             className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                                 currentPage === 1 || totalPages === 0
-                                    ? 'bg-slate-700/30 dark:bg-slate-700/30 bg-gray-200 text-gray-500 dark:text-gray-500 text-gray-400 cursor-not-allowed' 
-                                    : 'bg-slate-700/50 dark:bg-slate-700/50 bg-gray-200 text-gray-300 dark:text-gray-300 text-gray-700 hover:bg-slate-700 dark:hover:bg-slate-700 hover:bg-gray-300 hover:text-white dark:hover:text-white hover:text-gray-900'
+                                    ? 'bg-slate-700/30 dark:bg-white/5 dark:backdrop-blur-md dark:shadow-[inset_2px_2px_4px_rgba(0,0,0,0.2),inset_-1px_-1px_2px_rgba(255,255,255,0.03)] bg-gray-200 text-gray-500 dark:text-gray-500 text-gray-400 cursor-not-allowed' 
+                                    : 'bg-slate-700/50 dark:bg-white/5 dark:backdrop-blur-md dark:shadow-[4px_4px_8px_rgba(0,0,0,0.2),-2px_-2px_4px_rgba(255,255,255,0.03)] bg-gray-200 text-gray-300 dark:text-gray-300 text-gray-700 hover:bg-slate-700 dark:hover:bg-white/10 dark:hover:shadow-[6px_6px_12px_rgba(0,0,0,0.3),-3px_-3px_6px_rgba(255,255,255,0.05)] hover:bg-gray-300 hover:text-white dark:hover:text-white hover:text-gray-900'
                             }`}
                         >
                             Previous
@@ -1579,8 +1573,8 @@ const DataView = () => {
                                             onClick={() => setCurrentPage(pageNum)}
                                             className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
                                                 currentPage === pageNum 
-                                                    ? 'bg-teal-600 text-white ring-2 ring-teal-500/50' 
-                                                    : 'bg-slate-700/50 dark:bg-slate-700/50 bg-gray-200 text-gray-400 dark:text-gray-400 text-gray-600 hover:bg-slate-700 dark:hover:bg-slate-700 hover:bg-gray-300 hover:text-white dark:hover:text-white hover:text-gray-900'
+                                                    ? 'bg-[#9546A7] text-white ring-2 ring-[#9546A7]/50' 
+                                                    : 'bg-slate-700/50 dark:bg-white/5 dark:backdrop-blur-md dark:shadow-[4px_4px_8px_rgba(0,0,0,0.2),-2px_-2px_4px_rgba(255,255,255,0.03)] bg-gray-200 text-gray-400 dark:text-gray-400 text-gray-600 hover:bg-slate-700 dark:hover:bg-white/10 dark:hover:shadow-[6px_6px_12px_rgba(0,0,0,0.3),-3px_-3px_6px_rgba(255,255,255,0.05)] hover:bg-gray-300 hover:text-white dark:hover:text-white hover:text-gray-900'
                                             }`}
                                         >
                                             {pageNum}
@@ -1595,8 +1589,8 @@ const DataView = () => {
                             disabled={currentPage === totalPages || totalPages === 0}
                             className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                                 currentPage === totalPages || totalPages === 0
-                                    ? 'bg-slate-700/30 dark:bg-slate-700/30 bg-gray-200 text-gray-500 dark:text-gray-500 text-gray-400 cursor-not-allowed' 
-                                    : 'bg-slate-700/50 dark:bg-slate-700/50 bg-gray-200 text-gray-300 dark:text-gray-300 text-gray-700 hover:bg-slate-700 dark:hover:bg-slate-700 hover:bg-gray-300 hover:text-white dark:hover:text-white hover:text-gray-900'
+                                    ? 'bg-slate-700/30 dark:bg-white/5 dark:backdrop-blur-md dark:shadow-[inset_2px_2px_4px_rgba(0,0,0,0.2),inset_-1px_-1px_2px_rgba(255,255,255,0.03)] bg-gray-200 text-gray-500 dark:text-gray-500 text-gray-400 cursor-not-allowed' 
+                                    : 'bg-slate-700/50 dark:bg-white/5 dark:backdrop-blur-md dark:shadow-[4px_4px_8px_rgba(0,0,0,0.2),-2px_-2px_4px_rgba(255,255,255,0.03)] bg-gray-200 text-gray-300 dark:text-gray-300 text-gray-700 hover:bg-slate-700 dark:hover:bg-white/10 dark:hover:shadow-[6px_6px_12px_rgba(0,0,0,0.3),-3px_-3px_6px_rgba(255,255,255,0.05)] hover:bg-gray-300 hover:text-white dark:hover:text-white hover:text-gray-900'
                             }`}
                         >
                             Next
@@ -1652,20 +1646,20 @@ export default function App() {
     return (
         <div className={`relative min-h-screen transition-colors duration-300 ${
             isDarkMode 
-                ? 'bg-slate-950 text-gray-200' 
+                ? 'text-gray-200' 
                 : 'bg-gray-50 text-gray-900'
-        }`} style={{ fontFamily: "'Inter', sans-serif" }}>
+        }`} style={{ fontFamily: "'Inter', sans-serif", backgroundColor: isDarkMode ? '#000000' : undefined }}>
             {/* Animated Background */}
             <div className="fixed inset-0 overflow-hidden pointer-events-none">
                 <div className={`absolute -top-1/2 -right-1/2 w-full h-full rounded-full blur-3xl animate-pulse ${
                     isDarkMode 
-                        ? 'bg-gradient-to-br from-teal-500/10 via-cyan-500/5 to-transparent' 
-                        : 'bg-gradient-to-br from-teal-500/5 via-cyan-500/3 to-transparent'
+                        ? 'bg-gradient-to-br from-[#9546A7]/10 via-cyan-500/5 to-transparent' 
+                        : 'bg-gradient-to-br from-[#9546A7]/5 via-cyan-500/3 to-transparent'
                 }`}></div>
                 <div className={`absolute -bottom-1/2 -left-1/2 w-full h-full rounded-full blur-3xl animate-pulse ${
                     isDarkMode 
-                        ? 'bg-gradient-to-tr from-blue-500/10 via-teal-500/5 to-transparent' 
-                        : 'bg-gradient-to-tr from-blue-500/5 via-teal-500/3 to-transparent'
+                        ? 'bg-gradient-to-tr from-blue-500/10 via-[#9546A7]/5 to-transparent' 
+                        : 'bg-gradient-to-tr from-blue-500/5 via-[#9546A7]/3 to-transparent'
                 }`} style={{animationDelay: '1s'}}></div>
             </div>
 
@@ -1673,11 +1667,11 @@ export default function App() {
                 <div className="max-w-7xl mx-auto">
                     {/* Header */}
                     <header className="mb-8">
-                        <div className="bg-white dark:bg-gradient-to-r dark:from-slate-800/50 dark:via-slate-800/30 dark:to-slate-800/50 backdrop-blur-xl border border-gray-200 dark:border-slate-700/50 rounded-2xl p-6 shadow-2xl">
+                        <div className="bg-white dark:bg-white/5 backdrop-blur-xl border border-gray-200 dark:border-white/10 rounded-2xl p-6 shadow-2xl dark:shadow-[12px_12px_24px_rgba(0,0,0,0.4),-6px_-6px_12px_rgba(255,255,255,0.08)]">
                             <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
                                 {/* Logo and Title */}
                                 <div className="flex items-center space-x-4">
-                                    <div className="bg-gradient-to-br from-teal-600 to-teal-700 p-3 rounded-2xl shadow-lg">
+                                    <div className="bg-gradient-to-br from-[#9546A7] to-[#7A3A8F] p-3 rounded-2xl shadow-lg text-white">
                                         <ShieldIcon />
                                     </div>
                                     <div>
@@ -1691,12 +1685,12 @@ export default function App() {
                                 {/* Navigation and Theme Toggle */}
                                 <div className="flex items-center gap-4">
                                     {/* Navigation Toggle */}
-                                    <div className="flex items-center p-1.5 rounded-xl bg-white dark:bg-slate-900/50 backdrop-blur-sm border border-gray-200 dark:border-slate-700/50 shadow-inner">
+                                    <div className="flex items-center p-1.5 rounded-xl bg-white dark:bg-white/5 backdrop-blur-sm border border-gray-200 dark:border-white/10 shadow-inner dark:shadow-[inset_4px_4px_8px_rgba(0,0,0,0.3),inset_-2px_-2px_4px_rgba(255,255,255,0.05)]">
                                         <button 
                                             onClick={() => setActiveView('dashboard')} 
                                             className={`px-6 py-2.5 text-sm font-semibold rounded-lg focus:outline-none transition-all duration-300 ${
                                                 activeView === 'dashboard' 
-                                                    ? 'bg-gradient-to-r from-teal-600 to-teal-700 text-white' 
+                                                    ? 'bg-gradient-to-r from-[#9546A7] to-[#7A3A8F] text-white' 
                                                     : 'text-gray-400 dark:text-gray-400 text-gray-600 hover:text-white dark:hover:text-white hover:text-gray-900'
                                             }`}
                                         >
@@ -1706,7 +1700,7 @@ export default function App() {
                                             onClick={() => setActiveView('data')} 
                                             className={`px-6 py-2.5 text-sm font-semibold rounded-lg focus:outline-none transition-all duration-300 ${
                                                 activeView === 'data' 
-                                                    ? 'bg-gradient-to-r from-teal-600 to-teal-700 text-white' 
+                                                    ? 'bg-gradient-to-r from-[#9546A7] to-[#7A3A8F] text-white' 
                                                     : 'text-gray-400 dark:text-gray-400 text-gray-600 hover:text-white dark:hover:text-white hover:text-gray-900'
                                             }`}
                                         >
@@ -1716,7 +1710,7 @@ export default function App() {
                                             onClick={() => setActiveView('charts')} 
                                             className={`px-6 py-2.5 text-sm font-semibold rounded-lg focus:outline-none transition-all duration-300 ${
                                                 activeView === 'charts' 
-                                                    ? 'bg-gradient-to-r from-teal-600 to-teal-700 text-white' 
+                                                    ? 'bg-gradient-to-r from-[#9546A7] to-[#7A3A8F] text-white' 
                                                     : 'text-gray-400 dark:text-gray-400 text-gray-600 hover:text-white dark:hover:text-white hover:text-gray-900'
                                             }`}
                                         >
@@ -1727,7 +1721,7 @@ export default function App() {
                                     {/* Theme Toggle */}
                                     <button
                                         onClick={toggleTheme}
-                                        className="p-2.5 rounded-xl bg-white dark:bg-slate-900/50 backdrop-blur-sm border border-gray-200 dark:border-slate-700/50 text-gray-600 dark:text-gray-400 hover:text-teal-600 dark:hover:text-teal-400 hover:bg-gray-100 dark:hover:bg-slate-800/50 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-teal-500/50"
+                                        className="p-2.5 rounded-xl bg-white dark:bg-white/5 backdrop-blur-sm border border-gray-200 dark:border-white/10 text-gray-600 dark:text-gray-400 hover:text-[#9546A7] dark:hover:text-[#9546A7] hover:bg-gray-100 dark:hover:bg-white/10 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-[#9546A7]/50 dark:shadow-[4px_4px_8px_rgba(0,0,0,0.2),-2px_-2px_4px_rgba(255,255,255,0.03)]"
                                         aria-label="Toggle theme"
                                     >
                                         {isDarkMode ? <SunIcon /> : <MoonIcon />}
