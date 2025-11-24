@@ -851,7 +851,7 @@ const DashboardView = ({ setActiveView }) => {
                                     }`}>
                                         <div className="flex items-start justify-between">
                                             <div className="flex-1">
-                                                <div className="flex items-center gap-2 mb-2">
+                                                <div className="flex items-center justify-between mb-2">
                                                     <span className="font-mono text-xs text-[#9546A7] dark:text-[#9546A7] font-semibold">{txn.id || txn.transaction_id}</span>
                                                     <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
                                                         isInvestigating ? 'bg-red-500/20 text-red-400 dark:text-red-400 text-red-600' : 'bg-amber-500/20 text-amber-400 dark:text-amber-400 text-amber-600'
@@ -860,17 +860,19 @@ const DashboardView = ({ setActiveView }) => {
                                                     </span>
                                                 </div>
                                                 <p className="text-sm dark:text-white text-gray-900 font-medium mb-1">{txn.category || 'Anomaly Detected'}</p>
-                                                <div className="flex items-center gap-3 text-xs text-gray-400 dark:text-gray-400 text-gray-600">
+                                                <div className="flex items-center gap-3 text-xs text-gray-400 dark:text-gray-400 text-gray-600 mb-2">
                                                     <span>{txn.tag_plate_number || txn.tagPlate || '-'}</span>
                                                     <span>•</span>
                                                     <span>${(txn.amount || 0).toFixed(2)}</span>
                                                     <span>•</span>
                                                     <span>{txn.agency || '-'}</span>
                                                 </div>
+                                                {txn.transaction_date && (
+                                                    <span className="text-xs text-gray-400 dark:text-gray-400 text-gray-600">
+                                                        {new Date(txn.transaction_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                                    </span>
+                                                )}
                                             </div>
-                                            <div className={`w-2 h-2 rounded-full mt-1 ${
-                                                isInvestigating ? 'bg-red-500 animate-pulse' : 'bg-amber-500 animate-pulse'
-                                            }`}></div>
                                         </div>
                                     </div>
                                 );
@@ -1731,7 +1733,7 @@ export default function App() {
             </div>
 
             <div className="relative z-10 p-4 sm:p-6 lg:p-8">
-                <div className="max-w-7xl mx-auto">
+                <div className="max-w-[100rem] mx-auto">
                     {/* Header */}
                     <header className="mb-8">
                         <div className="bg-white dark:bg-white/5 backdrop-blur-xl border border-gray-200 dark:border-white/10 rounded-2xl p-6 shadow-2xl dark:shadow-[12px_12px_24px_rgba(0,0,0,0.4),-6px_-6px_12px_rgba(255,255,255,0.08)]">
