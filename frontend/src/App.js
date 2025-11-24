@@ -167,6 +167,18 @@ const fetchCategoryChartData = async () => {
     }
 };
 
+const fetchRecentFlaggedTransactions = async () => {
+    try {
+        const response = await fetch(`${apiUrl}/api/transactions/recent-flagged`);
+        if (!response.ok) throw new Error('Failed to fetch recent flagged transactions');
+        const { data } = await response.json();
+        return data || [];
+    } catch (err) {
+        console.error(err);
+        return [];
+    }
+};
+
 
 /*
 const recentAlerts = [
@@ -757,15 +769,15 @@ const RiskGauge = ({ score, label }) => {
 
 const DashboardView = ({ setActiveView }) => {
     const [animate, setAnimate] = useState(false);
+    const [recentFlaggedTransactions, setRecentFlaggedTransactions] = useState([]);
     
     useEffect(() => {
         setAnimate(true);
+        // Fetch recent flagged transactions from BigQuery
+        fetchRecentFlaggedTransactions().then(data => {
+            setRecentFlaggedTransactions(data);
+        });
     }, []);
-
-    // Get recent flagged transactions
-    const recentFlaggedTransactions = rawData
-        .filter(txn => txn.status === 'Flagged' || txn.status === 'Investigating')
-        .slice(0, 3);
 
     return (
         <div className="space-y-6">
@@ -823,37 +835,47 @@ const DashboardView = ({ setActiveView }) => {
                         <span className="px-2 py-1 bg-amber-500/20 text-amber-400 dark:text-amber-400 text-amber-600 text-xs font-semibold rounded-full">{recentFlaggedTransactions.length} New</span>
                     </div>
                     <div className="space-y-4">
-                        {recentFlaggedTransactions.map((txn, idx) => (
-                            <div key={idx} className={`p-4 rounded-xl border transition-all duration-300 hover:scale-105 cursor-pointer ${
-                                txn.status === 'Investigating' 
-                                    ? 'bg-red-500/10 border-red-500/30 hover:border-red-500/50' 
-                                    : 'bg-amber-500/10 border-amber-500/30 hover:border-amber-500/50'
-                            }`}>
-                                <div className="flex items-start justify-between">
-                                    <div className="flex-1">
-                                        <div className="flex items-center gap-2 mb-2">
-                                            <span className="font-mono text-xs text-[#9546A7] dark:text-[#9546A7] font-semibold">{txn.id}</span>
-                                            <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
-                                                txn.status === 'Investigating' ? 'bg-red-500/20 text-red-400 dark:text-red-400 text-red-600' : 'bg-amber-500/20 text-amber-400 dark:text-amber-400 text-amber-600'
-                                            }`}>
-                                                {txn.status}
-                                            </span>
-                                        </div>
-                                                <p className="text-sm dark:text-white text-gray-900 font-medium mb-1">{txn.category}</p>
-                                        <div className="flex items-center gap-3 text-xs text-gray-400 dark:text-gray-400 text-gray-600">
-                                            <span>{txn.tag_plate_number || txn.tagPlate || '-'}</span>
-                                            <span>•</span>
-                                            <span>${txn.amount.toFixed(2)}</span>
-                                            <span>•</span>
-                                            <span>{txn.agency}</span>
+                        {recentFlaggedTransactions.length === 0 ? (
+                            <div className="p-4 rounded-xl border border-gray-200 dark:border-white/10 text-center text-sm text-gray-400 dark:text-gray-400">
+                                No recent flagged transactions
+                            </div>
+                        ) : (
+                            recentFlaggedTransactions.map((txn) => {
+                                // Determine styling based on actual status
+                                const isInvestigating = txn.status === 'Investigating' || txn.status === 'Needs Review';
+                                return (
+                                    <div key={txn.id || txn.transaction_id} className={`p-4 rounded-xl border transition-all duration-300 hover:scale-105 cursor-pointer ${
+                                        isInvestigating
+                                            ? 'bg-red-500/10 border-red-500/30 hover:border-red-500/50' 
+                                            : 'bg-amber-500/10 border-amber-500/30 hover:border-amber-500/50'
+                                    }`}>
+                                        <div className="flex items-start justify-between">
+                                            <div className="flex-1">
+                                                <div className="flex items-center gap-2 mb-2">
+                                                    <span className="font-mono text-xs text-[#9546A7] dark:text-[#9546A7] font-semibold">{txn.id || txn.transaction_id}</span>
+                                                    <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
+                                                        isInvestigating ? 'bg-red-500/20 text-red-400 dark:text-red-400 text-red-600' : 'bg-amber-500/20 text-amber-400 dark:text-amber-400 text-amber-600'
+                                                    }`}>
+                                                        {txn.status}
+                                                    </span>
+                                                </div>
+                                                <p className="text-sm dark:text-white text-gray-900 font-medium mb-1">{txn.category || 'Anomaly Detected'}</p>
+                                                <div className="flex items-center gap-3 text-xs text-gray-400 dark:text-gray-400 text-gray-600">
+                                                    <span>{txn.tag_plate_number || txn.tagPlate || '-'}</span>
+                                                    <span>•</span>
+                                                    <span>${(txn.amount || 0).toFixed(2)}</span>
+                                                    <span>•</span>
+                                                    <span>{txn.agency || '-'}</span>
+                                                </div>
+                                            </div>
+                                            <div className={`w-2 h-2 rounded-full mt-1 ${
+                                                isInvestigating ? 'bg-red-500 animate-pulse' : 'bg-amber-500 animate-pulse'
+                                            }`}></div>
                                         </div>
                                     </div>
-                                    <div className={`w-2 h-2 rounded-full mt-1 ${
-                                        txn.status === 'Investigating' ? 'bg-red-500 animate-pulse' : 'bg-amber-500 animate-pulse'
-                                    }`}></div>
-                                </div>
-                            </div>
-                        ))}
+                                );
+                            })
+                        )}
                         <button 
                             onClick={() => setActiveView('data')}
                             className="w-full py-3 text-sm font-medium text-[#9546A7] dark:text-[#9546A7] hover:text-[#B873D1] dark:hover:text-[#B873D1] hover:text-[#7A3A8F] transition-colors border border-slate-700 dark:border-white/10 border-gray-300 hover:border-[#9546A7]/50 dark:hover:border-white/20 hover:border-[#9546A7] rounded-xl"
