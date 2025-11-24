@@ -1,0 +1,55 @@
+name: Dependency Submission (pip)
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+      - feat/data-ui-integration
+    paths:
+      - 'requirements.txt'
+      - 'backend/requirements.txt'
+      - 'web-scraper/requirements.txt'
+  pull_request:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'requirements.txt'
+      - 'backend/requirements.txt'
+      - 'web-scraper/requirements.txt'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  dependency-graph: write
+
+jobs:
+  submit-dependencies:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        requirements-file:
+          - requirements.txt
+          - backend/requirements.txt
+          - web-scraper/requirements.txt
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r ${{ matrix.requirements-file }}
+
+      - name: Submit dependencies
+        uses: actions/dependency-submission@v1
+        with:
+          name: ${{ matrix.requirements-file }}
+          path: ${{ matrix.requirements-file }}
+
