@@ -12,20 +12,48 @@ anomaly_scoring AS (
         *,
         
         -- Weighted anomaly score: sum of flag weights
-        (CASE WHEN flag_driver_amount_outlier THEN 80 ELSE 0 END) +
-        (CASE WHEN flag_route_amount_outlier THEN 10 ELSE 0 END) +
-        (CASE WHEN flag_amount_unusually_high THEN 5 ELSE 0 END) +
-        (CASE WHEN flag_driver_spend_spike THEN 5 ELSE 0 END) 
-        AS anomaly_score
-        
+        (
+            CASE WHEN flag_amount_gt_29 = TRUE THEN 50 ELSE 0 END +
+            CASE WHEN flag_vehicle_type = TRUE THEN 30 ELSE 0 END +
+            CASE WHEN flag_is_out_of_state = TRUE THEN 15 ELSE 0 END +
+            CASE WHEN flag_is_weekend = TRUE THEN 2 ELSE 0 END +
+            CASE WHEN flag_is_holiday = TRUE THEN 3 ELSE 0 END
+        ) AS rule_based_score
+    FROM flags
+),
+
+threat_severity AS (
+
         -- Score interpretation:
         -- 0: No anomalies detected
-        -- 1-3: Low risk
-        -- 3-5: Medium risk
-        -- 5+: High risk
-        
-    FROM flags
+        -- 5-15: Low risk
+        -- 15-30: Medium risk
+        -- 30-50: High risk
+        -- 50+: Critical risk
+    SELECT
+    *,
+    CASE 
+        WHEN rule_based_score >= 50 THEN 'critical risk'
+        WHEN rule_based_score >= 30 THEN 'high risk'
+        WHEN rule_based_score >= 15 THEN 'medium risk'
+        WHEN rule_based_score >= 2 THEN 'low risk'
+        ELSE 'no risk'
+    END AS threat_severity
+
+    FROM anomaly_scoring
+),
+
+status AS (
+    SELECT
+    *,
+    CASE 
+        WHEN flag_fraud = TRUE THEN 'Needs Review'
+        ELSE 'No Action Required'
+    END AS status
+
+    FROM threat_severity
 )
 
-SELECT * FROM anomaly_scoring
+
+SELECT * FROM status
 

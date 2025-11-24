@@ -7,10 +7,22 @@ WITH aggregated_features AS (
     SELECT * FROM {{ ref('_gold__agg') }}
 ),
 
+driver_prev_transaction_count AS (
+    SELECT
+    *,
+    COUNT(*) OVER (
+        PARTITION BY tag_plate_number
+        ORDER BY COALESCE(entry_time, TIMESTAMP('1900-01-01 00:00:00'))
+        ROWS BETWEEN 30 PRECEDING AND 1 PRECEDING
+    ) AS driver_num_prior_txns
+
+    FROM aggregated_features
+),
+
 driver_flags AS (
     SELECT
         *,
-        CASE WHEN driver_amount_modified_z_score > 1 THEN TRUE ELSE FALSE 
+        CASE WHEN driver_amount_modified_z_score > 1 AND amount >= 10 THEN TRUE ELSE FALSE 
         END as flag_driver_amount_outlier,
 
         CASE WHEN ABS(route_amount_z_score) > 1 THEN TRUE ELSE FALSE 
@@ -32,10 +44,37 @@ driver_flags AS (
                 AND amount >= 50
             THEN TRUE
             ELSE FALSE
-        END as flag_driver_spend_spike
+        END as flag_driver_spend_spike,
+
+        CASE state_name
+            WHEN 'NJ' THEN FALSE
+            ELSE TRUE
+        END as flag_is_out_of_state,
+
+        CASE
+            WHEN amount >= 29
+            THEN TRUE
+            ELSE FALSE
+        END as flag_amount_gt_29
         
-    FROM aggregated_features
+    FROM driver_prev_transaction_count
+),
+
+final_flags AS (
+    SELECT
+    *,
+    CASE 
+            WHEN flag_is_weekend = TRUE
+            or flag_is_out_of_state = TRUE
+            or flag_amount_gt_29 = TRUE
+            or flag_vehicle_type = TRUE
+            or flag_is_holiday = TRUE
+            THEN TRUE
+            ELSE FALSE
+        END as flag_fraud
+    FROM driver_flags
 )
 
-SELECT * FROM driver_flags
+SELECT * FROM final_flags
+
 
