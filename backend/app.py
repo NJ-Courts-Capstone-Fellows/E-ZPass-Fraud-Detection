@@ -2,7 +2,10 @@ from flask import Flask, jsonify, request
 from google.cloud import bigquery
 from flask_cors import CORS
 from dotenv import load_dotenv
+from werkzeug.utils import secure_filename
+from werkzeug.exceptions import RequestEntityTooLarge
 import os
+from pathlib import Path
 
 load_dotenv()
 
@@ -39,6 +42,36 @@ except Exception as e:
 
 app = Flask(__name__)
 CORS(app)
+
+# File upload configuration
+app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB max file size
+app.config['UPLOAD_FOLDER'] = 'data/raw'
+ALLOWED_EXTENSIONS = {'csv'}
+
+# Get project root directory
+backend_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(backend_dir)
+upload_folder = os.path.join(project_root, app.config['UPLOAD_FOLDER'])
+
+# Ensure upload directory exists
+os.makedirs(upload_folder, exist_ok=True)
+
+
+def allowed_file(filename):
+    """Check if file extension is allowed"""
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+def sanitize_filename(filename):
+    """Sanitize filename to prevent directory traversal and other security issues"""
+    # Remove any path components
+    filename = os.path.basename(filename)
+    filename = secure_filename(filename)
+    # Ensure it doesn't start with a dot
+    if filename.startswith('.'):
+        filename = 'file_' + filename
+    return filename
 
 #Get all transactions
 @app.route("/api/transactions")
@@ -341,6 +374,59 @@ def update_status():
 
     return jsonify({"success": True})
 
+
+
+# File upload route - API endpoint for file uploads
+@app.route("/upload", methods=["POST"])
+def upload_file():
+    """Handle file uploads to the Airflow-monitored folder"""
+    # Handle POST request
+    if 'file' not in request.files:
+        return jsonify({"error": "No file selected"}), 400
+    
+    file = request.files['file']
+    
+    # Check if file was actually selected
+    if file.filename == '':
+        return jsonify({"error": "No file selected"}), 400
+    
+    # Validate file extension
+    if not allowed_file(file.filename):
+        return jsonify({"error": "Invalid file type. Only CSV files are allowed."}), 400
+    
+    try:
+        # Sanitize filename
+        original_filename = file.filename
+        safe_filename = sanitize_filename(original_filename)
+        
+        # Ensure unique filename if file already exists
+        file_path = os.path.join(upload_folder, safe_filename)
+        counter = 1
+        base_name, ext = os.path.splitext(safe_filename)
+        while os.path.exists(file_path):
+            safe_filename = f"{base_name}_{counter}{ext}"
+            file_path = os.path.join(upload_folder, safe_filename)
+            counter += 1
+        
+        # Save file to upload folder
+        file.save(file_path)
+        
+        success_message = f"File '{original_filename}' uploaded successfully! Airflow will process it automatically."
+        return jsonify({"message": success_message, "filename": safe_filename}), 200
+        
+    except RequestEntityTooLarge:
+        error_message = "File is too large. Maximum file size is 50MB."
+        return jsonify({"error": error_message}), 413
+    except Exception as e:
+        print(f"Error uploading file: {str(e)}")
+        error_message = f"Error uploading file: {str(e)}"
+        return jsonify({"error": error_message}), 500
+
+
+# Error handler for file size limit
+@app.errorhandler(RequestEntityTooLarge)
+def handle_file_too_large(e):
+    return jsonify({"error": "File is too large. Maximum file size is 50MB."}), 413
 
 if __name__ == "__main__":
     app.run(debug=True, port=5001)

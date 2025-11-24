@@ -994,6 +994,221 @@ const ChartsView = () => {
     );
 };
 
+const UploadIcon = () => (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+    </svg>
+);
+
+const UploadView = () => {
+    const [selectedFile, setSelectedFile] = useState(null);
+    const [uploading, setUploading] = useState(false);
+    const [message, setMessage] = useState({ type: '', text: '' });
+    const [isDarkMode, setIsDarkMode] = useState(document.documentElement.classList.contains('dark'));
+
+    useEffect(() => {
+        const checkTheme = () => {
+            setIsDarkMode(document.documentElement.classList.contains('dark'));
+        };
+        const observer = new MutationObserver(checkTheme);
+        observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+        checkTheme();
+        return () => observer.disconnect();
+    }, []);
+
+    const handleFileChange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            // Validate file type
+            if (!file.name.toLowerCase().endsWith('.csv')) {
+                setMessage({ type: 'error', text: 'Only CSV files are allowed.' });
+                setSelectedFile(null);
+                e.target.value = '';
+                return;
+            }
+            
+            // Validate file size (50MB)
+            const maxSize = 50 * 1024 * 1024; // 50MB in bytes
+            if (file.size > maxSize) {
+                setMessage({ type: 'error', text: 'File size exceeds 50MB limit.' });
+                setSelectedFile(null);
+                e.target.value = '';
+                return;
+            }
+            
+            setSelectedFile(file);
+            setMessage({ type: '', text: '' });
+        }
+    };
+
+    const handleUpload = async (e) => {
+        e.preventDefault();
+        
+        if (!selectedFile) {
+            setMessage({ type: 'error', text: 'Please select a file to upload.' });
+            return;
+        }
+
+        setUploading(true);
+        setMessage({ type: '', text: '' });
+
+        const formData = new FormData();
+        formData.append('file', selectedFile);
+
+        try {
+            const response = await fetch(`${apiUrl}/upload`, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'Accept': 'application/json',
+                },
+            });
+
+            const result = await response.json();
+
+            if (response.ok) {
+                setMessage({ type: 'success', text: result.message || 'File uploaded successfully! Airflow will process it automatically.' });
+                setSelectedFile(null);
+                document.getElementById('file-input').value = '';
+            } else {
+                setMessage({ type: 'error', text: result.error || 'Upload failed. Please try again.' });
+            }
+        } catch (error) {
+            console.error('Upload error:', error);
+            setMessage({ type: 'error', text: 'An error occurred during upload. Please try again.' });
+        } finally {
+            setUploading(false);
+        }
+    };
+
+    const formatFileSize = (bytes) => {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+    };
+
+    return (
+        <div className="space-y-6">
+            <div className="bg-white dark:bg-white/5 backdrop-blur-md border border-gray-200 dark:border-white/10 p-8 rounded-2xl shadow-xl dark:shadow-[8px_8px_16px_rgba(0,0,0,0.3),-4px_-4px_8px_rgba(255,255,255,0.05)] hover:shadow-2xl dark:hover:shadow-[12px_12px_24px_rgba(0,0,0,0.4),-6px_-6px_12px_rgba(255,255,255,0.08)] transition-all duration-300">
+                <div className="max-w-2xl mx-auto">
+                    <div className="flex items-center gap-3 mb-6">
+                        <div className="bg-gradient-to-br from-[#9546A7] to-[#7A3A8F] p-3 rounded-xl text-white">
+                            <UploadIcon />
+                        </div>
+                        <div>
+                            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Upload CSV File</h2>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">Upload transaction data for processing by Airflow pipeline</p>
+                        </div>
+                    </div>
+
+                    {/* Message Display */}
+                    {message.text && (
+                        <div className={`mb-6 p-4 rounded-lg ${
+                            message.type === 'success' 
+                                ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-800 dark:text-green-200'
+                                : 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-200'
+                        }`}>
+                            {message.text}
+                        </div>
+                    )}
+
+                    <form onSubmit={handleUpload} className="space-y-6">
+                        <div>
+                            <label htmlFor="file-input" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                Select CSV File
+                            </label>
+                            <div className="relative">
+                                <input
+                                    id="file-input"
+                                    type="file"
+                                    accept=".csv"
+                                    onChange={handleFileChange}
+                                    className="block w-full text-sm text-gray-500 dark:text-gray-400
+                                        file:mr-4 file:py-2 file:px-4
+                                        file:rounded-lg file:border-0
+                                        file:text-sm file:font-semibold
+                                        file:bg-gradient-to-r file:from-[#9546A7] file:to-[#7A3A8F]
+                                        file:text-white
+                                        hover:file:opacity-90
+                                        file:cursor-pointer
+                                        cursor-pointer
+                                        border border-gray-300 dark:border-gray-600
+                                        rounded-lg
+                                        bg-white dark:bg-gray-800
+                                        focus:outline-none focus:ring-2 focus:ring-[#9546A7] focus:border-transparent"
+                                    disabled={uploading}
+                                />
+                            </div>
+                            <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                                Maximum file size: 50MB | Accepted format: CSV only
+                            </p>
+                            {selectedFile && (
+                                <div className="mt-3 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <p className="text-sm font-medium text-gray-900 dark:text-white">{selectedFile.name}</p>
+                                            <p className="text-xs text-gray-500 dark:text-gray-400">{formatFileSize(selectedFile.size)}</p>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setSelectedFile(null);
+                                                document.getElementById('file-input').value = '';
+                                            }}
+                                            className="text-red-500 hover:text-red-700 text-sm font-medium"
+                                            disabled={uploading}
+                                        >
+                                            Remove
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        <button
+                            type="submit"
+                            disabled={!selectedFile || uploading}
+                            className="w-full bg-gradient-to-r from-[#9546A7] to-[#7A3A8F] text-white font-semibold py-3 px-6 rounded-lg
+                                hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-[#9546A7] focus:ring-offset-2
+                                disabled:opacity-50 disabled:cursor-not-allowed
+                                transition-all duration-300
+                                flex items-center justify-center gap-2"
+                        >
+                            {uploading ? (
+                                <>
+                                    <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    Uploading...
+                                </>
+                            ) : (
+                                <>
+                                    <UploadIcon />
+                                    Upload File
+                                </>
+                            )}
+                        </button>
+                    </form>
+
+                    {/* Info Box */}
+                    {/* <div className="mt-8 p-4 bg-blue-50 dark:bg-blue-900/20 border-l-4 border-[#9546A7] rounded-lg">
+                        <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">How it works:</h3>
+                        <ul className="text-xs text-gray-700 dark:text-gray-300 space-y-1 list-disc list-inside">
+                            <li>Uploaded files are saved to the <code className="bg-gray-200 dark:bg-gray-700 px-1 rounded">data/raw</code> folder</li>
+                            <li>Airflow automatically detects new files and processes them</li>
+                            <li>Processed data is transformed and uploaded to BigQuery</li>
+                            <li>You'll see the results in your dashboard once processing is complete</li>
+                        </ul>
+                    </div> */}
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const DataView = () => {
     // Color mapping for ML prediction categories - matching CategoryChart colors and risk levels
     const getMLPredictionColor = (category) => {
@@ -1757,6 +1972,16 @@ export default function App() {
                                         >
                                             Charts
                                         </button>
+                                        <button 
+                                            onClick={() => setActiveView('upload')} 
+                                            className={`px-6 py-2.5 text-sm font-semibold rounded-lg focus:outline-none transition-all duration-300 ${
+                                                activeView === 'upload' 
+                                                    ? 'bg-gradient-to-r from-[#9546A7] to-[#7A3A8F] text-white' 
+                                                    : 'text-gray-400 dark:text-gray-400 text-gray-600 hover:text-white dark:hover:text-white hover:text-gray-900'
+                                            }`}
+                                        >
+                                            Upload
+                                        </button>
                                     </div>
                                     
                                     {/* Theme Toggle */}
@@ -1776,6 +2001,7 @@ export default function App() {
                     <main className="animate-fadeIn">
                         {activeView === 'dashboard' ? <DashboardView setActiveView={setActiveView} /> : 
                          activeView === 'charts' ? <ChartsView /> : 
+                         activeView === 'upload' ? <UploadView /> :
                          <DataView />}
                     </main>
                 </div>
