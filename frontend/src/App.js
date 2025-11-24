@@ -832,7 +832,6 @@ const DashboardView = ({ setActiveView }) => {
                 <div className="bg-white dark:bg-white/5 backdrop-blur-md border border-gray-200 dark:border-white/10 p-6 rounded-2xl shadow-xl dark:shadow-[8px_8px_16px_rgba(0,0,0,0.3),-4px_-4px_8px_rgba(255,255,255,0.05)] hover:shadow-2xl dark:hover:shadow-[12px_12px_24px_rgba(0,0,0,0.4),-6px_-6px_12px_rgba(255,255,255,0.08)] transition-all duration-300">
                     <div className="flex items-center justify-between mb-6">
                         <h3 className="font-bold text-xl dark:text-white text-gray-900">Recent Flagged Transactions</h3>
-                        <span className="px-2 py-1 bg-amber-500/20 text-amber-400 dark:text-amber-400 text-amber-600 text-xs font-semibold rounded-full">{recentFlaggedTransactions.length} New</span>
                     </div>
                     <div className="space-y-4">
                         {recentFlaggedTransactions.length === 0 ? (
