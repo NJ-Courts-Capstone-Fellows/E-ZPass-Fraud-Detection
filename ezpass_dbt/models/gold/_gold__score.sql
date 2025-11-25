@@ -12,10 +12,17 @@ anomaly_scoring AS (
         *,
         
         -- Weighted anomaly score: sum of flag weights
-        (CASE WHEN flag_driver_amount_outlier THEN 80 ELSE 0 END) +
+        (CASE WHEN flag_driver_amount_outlier THEN 10 ELSE 0 END) +
         (CASE WHEN flag_route_amount_outlier THEN 10 ELSE 0 END) +
-        (CASE WHEN flag_amount_unusually_high THEN 5 ELSE 0 END) +
-        (CASE WHEN flag_driver_spend_spike THEN 5 ELSE 0 END) 
+        (CASE WHEN flag_amount_unusually_high THEN 10 ELSE 0 END) +
+        (CASE WHEN flag_driver_spend_spike THEN 10 ELSE 0 END) +
+        (CASE WHEN flag_vehicle_type = TRUE THEN 30 ELSE 0 END) +
+        (CASE WHEN flag_is_out_of_state = TRUE THEN 15 ELSE 0 END) +
+        (CASE WHEN flag_is_weekend = TRUE THEN 7 ELSE 0 END) +
+        (CASE WHEN flag_is_holiday = TRUE THEN 8 ELSE 0 END)
+
+
+
         AS anomaly_score
         
         -- Score interpretation:

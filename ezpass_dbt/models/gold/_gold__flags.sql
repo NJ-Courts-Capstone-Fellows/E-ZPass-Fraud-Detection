@@ -13,7 +13,7 @@ driver_flags AS (
         CASE WHEN driver_amount_modified_z_score > 1 THEN TRUE ELSE FALSE 
         END as flag_driver_amount_outlier,
 
-        CASE WHEN ABS(route_amount_z_score) > 1 THEN TRUE ELSE FALSE 
+        CASE WHEN route_amount_z_score > 1 THEN TRUE ELSE FALSE 
         END as flag_route_amount_outlier,
         
         CASE WHEN amount_deviation_from_avg_pct > 80 
@@ -32,7 +32,12 @@ driver_flags AS (
                 AND amount >= 50
             THEN TRUE
             ELSE FALSE
-        END as flag_driver_spend_spike
+        END as flag_driver_spend_spike,
+
+        CASE state_name
+            WHEN 'NJ' THEN FALSE
+            ELSE TRUE
+        END as flag_is_out_of_state
         
     FROM aggregated_features
 )

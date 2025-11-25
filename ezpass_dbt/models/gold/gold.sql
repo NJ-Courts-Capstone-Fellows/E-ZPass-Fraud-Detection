@@ -46,6 +46,7 @@ SELECT
     -- transaction_day,
     flag_is_weekend,
     flag_is_holiday,
+    flag_is_out_of_state,
     
     -- ===== VEHICLE & FARE =====
     vehicle_type_code,
