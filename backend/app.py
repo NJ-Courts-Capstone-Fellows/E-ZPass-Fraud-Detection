@@ -119,9 +119,15 @@ def metrics():
         COUNT(*) AS total_transactions,
         SUM(CASE WHEN is_anomaly = 1 THEN 1 ELSE 0 END) AS total_flagged,
         SUM(CASE WHEN is_anomaly = 1 THEN amount ELSE 0 END) AS total_amount,
-        SUM(CASE WHEN is_anomaly = 1 AND EXTRACT(YEAR FROM transaction_date) = EXTRACT(YEAR FROM CURRENT_DATE()) THEN 1 ELSE 0 END) AS total_alerts_ytd,
-        SUM(CASE WHEN is_anomaly = 1 AND EXTRACT(YEAR FROM transaction_date) = EXTRACT(YEAR FROM CURRENT_DATE()) 
-                 AND EXTRACT(MONTH FROM transaction_date) = EXTRACT(MONTH FROM CURRENT_DATE()) THEN 1 ELSE 0 END) AS detected_frauds_current_month
+        SUM(CASE WHEN is_anomaly = 1 
+                 AND EXTRACT(YEAR FROM transaction_date) = EXTRACT(YEAR FROM CURRENT_DATE()) THEN 1 ELSE 0 END) AS total_alerts_ytd,
+        SUM(CASE 
+                WHEN ml_predicted_category IN ('Critical Risk', 'High Risk')
+                     AND EXTRACT(YEAR FROM transaction_date) = EXTRACT(YEAR FROM CURRENT_DATE())
+                     AND EXTRACT(MONTH FROM transaction_date) = EXTRACT(MONTH FROM CURRENT_DATE())
+                THEN 1 
+                ELSE 0 
+            END) AS detected_frauds_current_month
     FROM `njc-ezpass.ezpass_data.master_viz`
     """
     try:
