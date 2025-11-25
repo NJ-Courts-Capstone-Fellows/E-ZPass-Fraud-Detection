@@ -119,9 +119,21 @@ def metrics():
         COUNT(*) AS total_transactions,
         SUM(CASE WHEN is_anomaly = 1 THEN 1 ELSE 0 END) AS total_flagged,
         SUM(CASE WHEN is_anomaly = 1 THEN amount ELSE 0 END) AS total_amount,
-        SUM(CASE WHEN is_anomaly = 1 AND EXTRACT(YEAR FROM transaction_date) = EXTRACT(YEAR FROM CURRENT_DATE()) THEN 1 ELSE 0 END) AS total_alerts_ytd,
-        SUM(CASE WHEN is_anomaly = 1 AND EXTRACT(YEAR FROM transaction_date) = EXTRACT(YEAR FROM CURRENT_DATE()) 
-                 AND EXTRACT(MONTH FROM transaction_date) = EXTRACT(MONTH FROM CURRENT_DATE()) THEN 1 ELSE 0 END) AS detected_frauds_current_month
+        SUM(CASE 
+                WHEN is_anomaly = 1 
+                     AND EXTRACT(YEAR FROM transaction_date) = EXTRACT(YEAR FROM CURRENT_DATE())
+                THEN amount 
+                ELSE 0 
+            END) AS potential_loss_ytd,
+        SUM(CASE WHEN is_anomaly = 1 
+                 AND EXTRACT(YEAR FROM transaction_date) = EXTRACT(YEAR FROM CURRENT_DATE()) THEN 1 ELSE 0 END) AS total_alerts_ytd,
+        SUM(CASE 
+                WHEN ml_predicted_category IN ('Critical Risk', 'High Risk')
+                     AND EXTRACT(YEAR FROM transaction_date) = EXTRACT(YEAR FROM CURRENT_DATE())
+                     AND EXTRACT(MONTH FROM transaction_date) = EXTRACT(MONTH FROM CURRENT_DATE())
+                THEN 1 
+                ELSE 0 
+            END) AS detected_frauds_current_month
     FROM `njc-ezpass.ezpass_data.master_viz`
     """
     try:
@@ -132,7 +144,8 @@ def metrics():
             "total_flagged": int(metrics.get("total_flagged", 0)),
             "total_amount": float(metrics.get("total_amount", 0)),
             "total_alerts_ytd": int(metrics.get("total_alerts_ytd", 0)),
-            "detected_frauds_current_month": int(metrics.get("detected_frauds_current_month", 0))
+            "detected_frauds_current_month": int(metrics.get("detected_frauds_current_month", 0)),
+            "potential_loss_ytd": float(metrics.get("potential_loss_ytd", 0))
         })
     except Exception as e:
         print(f"Error fetching metrics: {str(e)}")
@@ -141,7 +154,8 @@ def metrics():
             "total_flagged": 0,
             "total_amount": 0,
             "total_alerts_ytd": 0,
-            "detected_frauds_current_month": 0
+            "detected_frauds_current_month": 0,
+            "potential_loss_ytd": 0
         }), 500
 
 #Fraud by Category for chart

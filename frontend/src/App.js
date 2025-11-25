@@ -56,6 +56,23 @@ const fetchRecentFlaggedTransactions = async () => {
     }
 };
 
+const fetchDashboardMetrics = async () => {
+    try {
+        const response = await fetch(`${apiUrl}/api/metrics`);
+        if (!response.ok) throw new Error('Failed to fetch dashboard metrics');
+        const data = await response.json();
+        return data || {};
+    } catch (err) {
+        console.error(err);
+        return {
+            total_alerts_ytd: 0,
+            total_amount: 0,
+            detected_frauds_current_month: 0,
+            potential_loss_ytd: 0
+        };
+    }
+};
+
 
 /*
 const recentAlerts = [
@@ -644,16 +661,63 @@ const RiskGauge = ({ score, label }) => {
 */
 // --- View Components ---
 
+const formatCurrency = (value) => {
+    const numericValue = Number(value) || 0;
+    return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'USD',
+        maximumFractionDigits: 0
+    }).format(numericValue);
+};
+
 const DashboardView = ({ setActiveView }) => {
     const [animate, setAnimate] = useState(false);
     const [recentFlaggedTransactions, setRecentFlaggedTransactions] = useState([]);
+    const [dashboardMetrics, setDashboardMetrics] = useState({
+        total_alerts_ytd: 0,
+        total_amount: 0,
+        detected_frauds_current_month: 0,
+        potential_loss_ytd: 0
+    });
+    const [metricsLoading, setMetricsLoading] = useState(true);
     
     useEffect(() => {
         setAnimate(true);
-        // Fetch recent flagged transactions from BigQuery
-        fetchRecentFlaggedTransactions().then(data => {
-            setRecentFlaggedTransactions(data);
-        });
+
+        const loadRecentTransactions = async () => {
+            try {
+                const data = await fetchRecentFlaggedTransactions();
+                setRecentFlaggedTransactions(data);
+            } catch (error) {
+                console.error('Error loading recent flagged transactions:', error);
+            }
+        };
+
+        const loadMetrics = async () => {
+            setMetricsLoading(true);
+            try {
+                const data = await fetchDashboardMetrics();
+                setDashboardMetrics({
+                    total_alerts_ytd: data?.total_alerts_ytd || 0,
+                    total_amount: data?.total_amount || 0,
+                    detected_frauds_current_month: data?.detected_frauds_current_month || 0,
+                    potential_loss_ytd: data?.potential_loss_ytd || data?.total_amount || 0
+                });
+            } catch (error) {
+                console.error('Error loading dashboard metrics:', error);
+                setDashboardMetrics({
+                    total_alerts_ytd: 0,
+                    total_amount: 0,
+                    detected_frauds_current_month: 0,
+                    potential_loss_ytd: 0
+                });
+            } finally {
+                setMetricsLoading(false);
+            }
+        };
+
+        loadRecentTransactions();
+        loadMetrics();
     }, []);
 
     return (
@@ -668,7 +732,9 @@ const DashboardView = ({ setActiveView }) => {
                         </div>
                     </div>
                     <h3 className="text-gray-400 dark:text-gray-400 text-gray-600 text-sm font-medium mb-1">Total Alerts (YTD)</h3>
-                    <p className="text-4xl font-bold dark:text-white text-gray-900 mb-2 bg-gradient-to-r from-[#9546A7] to-[#B873D1] dark:from-[#9546A7] dark:to-[#B873D1] bg-clip-text text-transparent">1,428</p>
+                    <p className="text-4xl font-bold dark:text-white text-gray-900 mb-2 bg-gradient-to-r from-[#9546A7] to-[#B873D1] dark:from-[#9546A7] dark:to-[#B873D1] bg-clip-text text-transparent">
+                        {metricsLoading ? '—' : (dashboardMetrics.total_alerts_ytd || 0).toLocaleString()}
+                    </p>
                 </div>
 
                 {/* Potential Loss Card */}
@@ -679,7 +745,9 @@ const DashboardView = ({ setActiveView }) => {
                         </div>
                     </div>
                     <h3 className="text-gray-400 dark:text-gray-400 text-gray-600 text-sm font-medium mb-1">Potential Loss (YTD)</h3>
-                    <p className="text-4xl font-bold dark:text-white text-gray-900 mb-2 bg-gradient-to-r from-rose-400 to-rose-200 dark:from-rose-400 dark:to-rose-200 from-rose-600 to-rose-700 bg-clip-text text-transparent">$76,330</p>
+                    <p className="text-4xl font-bold dark:text-white text-gray-900 mb-2 bg-gradient-to-r from-rose-400 to-rose-200 dark:from-rose-400 dark:to-rose-200 from-rose-600 to-rose-700 bg-clip-text text-transparent">
+                        {metricsLoading ? '—' : formatCurrency(dashboardMetrics.potential_loss_ytd)}
+                    </p>
                 </div>
 
                 {/* Detected Frauds Card */}
@@ -690,7 +758,9 @@ const DashboardView = ({ setActiveView }) => {
                         </div>
                     </div>
                     <h3 className="text-gray-400 dark:text-gray-400 text-gray-600 text-sm font-medium mb-1">Detected Frauds (Current Month)</h3>
-                    <p className="text-4xl font-bold dark:text-white text-gray-900 mb-2 bg-gradient-to-r from-amber-400 to-amber-200 dark:from-amber-400 dark:to-amber-200 from-amber-600 to-amber-700 bg-clip-text text-transparent">280</p>
+                    <p className="text-4xl font-bold dark:text-white text-gray-900 mb-2 bg-gradient-to-r from-amber-400 to-amber-200 dark:from-amber-400 dark:to-amber-200 from-amber-600 to-amber-700 bg-clip-text text-transparent">
+                        {metricsLoading ? '—' : (dashboardMetrics.detected_frauds_current_month || 0).toLocaleString()}
+                    </p>
                 </div>
             </div>
 
