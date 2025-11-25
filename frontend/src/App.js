@@ -806,7 +806,7 @@ const ScatterPlot = () => {
     useEffect(() => {
         const fetchScatterData = async () => {
             try {
-                const response = await fetch('http://localhost:5001/api/charts/scatter');
+                const response = await fetch(`${apiUrl}api/charts/scatter`);
                 const result = await response.json();
                 if (result.data && result.data.length > 0) {
                     setChartData(result.data);
@@ -975,6 +975,14 @@ const DataView = () => {
     const [loading, setLoading] = useState(true);
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 15; // rows per page
+    const STATUS_TRANSITIONS = {
+        "No Action Required": [],   // cannot change
+        "Needs Review": ["Resolved - Not Fraud", "Investigating", "Resolved - Fraud"],
+        "Investigating": ["Resolved - Not Fraud", "Resolved - Fraud"],
+        "Resolved - Not Fraud": [],             // cannot change
+        "Resolved - Fraud": []               // cannot change
+    };
+
 
     useEffect(() => {
         const loadData = async () => {
@@ -992,14 +1000,31 @@ const DataView = () => {
     }, [searchTerm, filterStatus, filterMLCategory, sortColumn, sortDirection]);
 
     const handleStatusChange = (transactionId, newStatus) => {
-        setTransactionData(prevData => 
-            prevData.map(transaction => 
-                (transaction.transaction_id === transactionId || transaction.id === transactionId)
-                    ? { ...transaction, status: newStatus }
-                    : transaction
-            )
+        setTransactionData(prev =>
+            prev.map(t => {
+                if (t.transaction_id !== transactionId && t.id !== transactionId) return t;
+
+                const allowed = STATUS_TRANSITIONS[t.status] || [];
+                if (!allowed.includes(newStatus)) return t; // ignore invalid change
+
+                return { ...t, status: newStatus };
+            })
         );
+
+        // also send to backend
+        updateTransactionStatus(transactionId, newStatus);
     };
+
+    const updateTransactionStatus = async (transactionId, newStatus) => {
+        
+        await fetch(`${apiUrl}/api/transactions/update-status`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ transactionId, newStatus }),
+        });
+    };
+
+
 
     const handleSort = (column) => {
         if (sortColumn === column) {
@@ -1194,10 +1219,10 @@ const DataView = () => {
                             className="px-4 py-3 rounded-xl text-sm font-medium bg-white dark:bg-white/5 dark:backdrop-blur-md text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-white/10 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 dark:focus:border-white/20 transition-all cursor-pointer dark:shadow-[4px_4px_8px_rgba(0,0,0,0.2),-2px_-2px_4px_rgba(255,255,255,0.03)]"
                         >
                             <option value="all" className="bg-slate-800 dark:bg-white/5 bg-white">All Status</option>
-                            <option value="Flagged" className="bg-slate-800 dark:bg-white/5 bg-white">Flagged</option>
+                            <option value="Resolved - Fraud" className="bg-slate-800 dark:bg-white/5 bg-white">Resolved - Fraud</option>
                             <option value="Investigating" className="bg-slate-800 dark:bg-white/5 bg-white">Investigating</option>
                             <option value="Needs Review" className="bg-slate-800 dark:bg-white/5 bg-white">Needs Review</option>
-                            <option value="Resolved" className="bg-slate-800 dark:bg-white/5 bg-white">Resolved</option>
+                            <option value="Resolved - Not Fraud" className="bg-slate-800 dark:bg-white/5 bg-white">Resolved - Not Fraud</option>
                             <option value="No Action Required" className="bg-slate-800 dark:bg-white/5 bg-white">No Action Required</option>
                         </select>
                         <select
@@ -1314,17 +1339,18 @@ const DataView = () => {
                                                 <select
                                                     value={status}
                                                     onChange={(e) => handleStatusChange(row.transaction_id || row.id, e.target.value)}
-                                                    className={`px-2 py-1.5 rounded-lg text-xs font-semibold border-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-0 ${
-                                                        status === 'Investigating' || status === 'Needs Review' ? 'bg-red-500/20 text-red-400 focus:ring-red-500/50' :
-                                                        status === 'Flagged' ? 'bg-amber-500/20 text-amber-400 focus:ring-amber-500/50' :
-                                                        'bg-emerald-500/20 text-emerald-400 focus:ring-emerald-500/50'
-                                                    }`}
+                                                    disabled={STATUS_TRANSITIONS[status].length === 0}   // disable if no edits allowed
+                                                    className={`px-2 py-1.5 rounded-lg text-xs font-semibold border-0 cursor-pointer 
+                                                    ${STATUS_TRANSITIONS[status].length === 0 ? "opacity-50 cursor-not-allowed" : ""}
+                                                    `}
                                                 >
-                                                    <option value="Flagged" className="bg-slate-800 text-amber-400">Flagged</option>
-                                                    <option value="Investigating" className="bg-slate-800 text-red-400">Investigating</option>
-                                                    <option value="Needs Review" className="bg-slate-800 text-red-400">Needs Review</option>
-                                                    <option value="Resolved" className="bg-slate-800 text-emerald-400">Resolved</option>
-                                                    <option value="No Action Required" className="bg-slate-800 text-gray-400">No Action Required</option>
+                                                    {/* Current status appears first */}
+                                                    <option value={status}>{status}</option>
+
+                                                    {/* Only show allowed new statuses */}
+                                                    {STATUS_TRANSITIONS[status].map(option => (
+                                                        <option key={option} value={option}>{option}</option>
+                                                    ))}
                                                 </select>
                                             ) : (
                                                 <span className="text-gray-400 dark:text-gray-400 text-gray-600 text-base">-</span>
