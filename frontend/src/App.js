@@ -538,6 +538,9 @@ const CategoryChart = () => {
     return <div className="h-80 w-full flex justify-center items-center"><canvas ref={chartRef}></canvas></div>;
 };
 
+// Define order for severity levels (highest to lowest)
+const severityOrder = ['Critical Risk', 'High Risk', 'Medium Risk', 'Low Risk', 'No Risk'];
+
 const SeverityChart = () => {
     const chartRef = useRef(null);
     const chartInstanceRef = useRef(null);
@@ -578,9 +581,6 @@ const SeverityChart = () => {
         };
         return colorMap[severity] || 'rgba(156, 163, 175, 0.8)'; // Gray fallback
     };
-
-    // Define order for severity levels (highest to lowest)
-    const severityOrder = ['Critical Risk', 'High Risk', 'Medium Risk', 'Low Risk', 'No Risk'];
 
     useEffect(() => {
         const loadChartData = async () => {
