@@ -1004,17 +1004,6 @@ const UploadView = () => {
     const [selectedFile, setSelectedFile] = useState(null);
     const [uploading, setUploading] = useState(false);
     const [message, setMessage] = useState({ type: '', text: '' });
-    const [isDarkMode, setIsDarkMode] = useState(document.documentElement.classList.contains('dark'));
-
-    useEffect(() => {
-        const checkTheme = () => {
-            setIsDarkMode(document.documentElement.classList.contains('dark'));
-        };
-        const observer = new MutationObserver(checkTheme);
-        observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
-        checkTheme();
-        return () => observer.disconnect();
-    }, []);
 
     const handleFileChange = (e) => {
         const file = e.target.files[0];
