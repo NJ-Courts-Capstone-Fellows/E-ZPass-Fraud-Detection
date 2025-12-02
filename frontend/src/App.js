@@ -45,6 +45,18 @@ const fetchCategoryChartData = async () => {
     }
 };
 
+const fetchSeverityChartData = async () => {
+    try {
+        const response = await fetch(`${apiUrl}/api/charts/severity`);
+        if (!response.ok) throw new Error('Failed to fetch severity chart data');
+        const { data } = await response.json();
+        return data || [];
+    } catch (err) {
+        console.error(err);
+        return [];
+    }
+};
+
 const fetchRecentFlaggedTransactions = async () => {
     try {
         const response = await fetch(`${apiUrl}/api/transactions/recent-flagged`);
@@ -54,6 +66,23 @@ const fetchRecentFlaggedTransactions = async () => {
     } catch (err) {
         console.error(err);
         return [];
+    }
+};
+
+const fetchDashboardMetrics = async () => {
+    try {
+        const response = await fetch(`${apiUrl}/api/metrics`);
+        if (!response.ok) throw new Error('Failed to fetch dashboard metrics');
+        const data = await response.json();
+        return data || {};
+    } catch (err) {
+        console.error(err);
+        return {
+            total_alerts_ytd: 0,
+            total_amount: 0,
+            detected_frauds_current_month: 0,
+            potential_loss_ytd: 0
+        };
     }
 };
 
@@ -175,13 +204,17 @@ const BarChart = () => {
             try {
                 const data = await fetchMonthlyChartData();
                 if (data && data.length > 0) {
+                    // Extract labels and data
+                    // Check if data spans multiple years - if so, include year in labels
                     const uniqueYears = new Set(data.map(item => item.year));
                     const showYear = uniqueYears.size > 1;
                     
                     const labels = data.map(item => {
                         if (showYear) {
+                            // Show "Apr 2025" format when multiple years
                             return item.month;
                         } else {
+                            // Show just "Apr" when single year
                             const monthParts = item.month.split(' ');
                             return monthParts[0];
                         }
@@ -195,6 +228,7 @@ const BarChart = () => {
                         fraudAlerts
                     });
                 } else {
+                    // Default empty data
                     setChartData({
                         labels: [],
                         totalTransactions: [],
@@ -221,6 +255,7 @@ const BarChart = () => {
 
         const ctx = chartRef.current.getContext('2d');
         
+        // Destroy existing chart if it exists
         Chart.getChart(chartRef.current)?.destroy();
         chartInstanceRef.current = null;
         
@@ -246,6 +281,7 @@ const BarChart = () => {
             }
         ];
 
+        // Always show fraud alerts dataset, even if all zeros (ready for when fraud detection is implemented)
         datasets.push({
             label: 'Fraud Alerts',
             data: chartData.fraudAlerts,
@@ -319,34 +355,36 @@ const CategoryChart = () => {
         return () => observer.disconnect();
     }, []);
 
+    // Color mapping for different fraud categories - using vibrant colors visible in light mode
     const getCategoryColor = (category, index) => {
         const colorMap = {
-            'Holiday': 'rgba(239, 68, 68, 0.9)',
-            'Out of State': 'rgba(14, 165, 233, 0.9)',
-            'Vehicle Type > 2': 'rgba(168, 85, 247, 0.9)',
-            'Weekend': 'rgba(236, 72, 153, 0.9)',
-            'Driver Amount Outlier': 'rgba(59, 130, 246, 0.9)',
-            'Rush Hour': 'rgba(34, 197, 94, 0.9)',
-            'Amount Unusually High': 'rgba(251, 146, 60, 0.9)',
-            'Route Amount Outlier': 'rgba(139, 92, 246, 0.9)',
-            'Driver Spend Spike': 'rgba(149, 70, 167, 0.9)',
-            'Overlapping Journey': 'rgba(245, 158, 11, 0.9)',
-            'Possible Cloning': 'rgba(168, 85, 247, 0.9)',
-            'Toll Evasion': 'rgba(239, 68, 68, 0.9)',
-            'Account Takeover': 'rgba(220, 38, 38, 0.9)',
-            'Card Skimming': 'rgba(236, 72, 153, 0.9)'
+            'Holiday': 'rgba(239, 68, 68, 0.9)', // Red
+            'Out of State': 'rgba(14, 165, 233, 0.9)', // Sky Blue
+            'Vehicle Type > 2': 'rgba(168, 85, 247, 0.9)', // Purple
+            'Weekend': 'rgba(236, 72, 153, 0.9)', // Pink
+            'Driver Amount Outlier': 'rgba(59, 130, 246, 0.9)', // Blue
+            'Rush Hour': 'rgba(34, 197, 94, 0.9)', // Green
+            'Amount Unusually High': 'rgba(251, 146, 60, 0.9)', // Orange
+            'Route Amount Outlier': 'rgba(139, 92, 246, 0.9)', // Violet
+            'Driver Spend Spike': 'rgba(149, 70, 167, 0.9)', // Purple
+            'Overlapping Journey': 'rgba(245, 158, 11, 0.9)', // Amber
+            'Possible Cloning': 'rgba(168, 85, 247, 0.9)', // Purple
+            'Toll Evasion': 'rgba(239, 68, 68, 0.9)', // Red
+            'Account Takeover': 'rgba(220, 38, 38, 0.9)', // Dark Red
+            'Card Skimming': 'rgba(236, 72, 153, 0.9)' // Pink
         };
+        // Fallback colors - using vibrant, distinct colors that are visible in light mode
         const fallbackColors = [
-            'rgba(59, 130, 246, 0.9)',
-            'rgba(34, 197, 94, 0.9)',
-            'rgba(251, 146, 60, 0.9)',
-            'rgba(139, 92, 246, 0.9)',
-            'rgba(149, 70, 167, 0.9)',
-            'rgba(245, 158, 11, 0.9)',
-            'rgba(239, 68, 68, 0.9)',
-            'rgba(236, 72, 153, 0.9)',
-            'rgba(168, 85, 247, 0.9)',
-            'rgba(14, 165, 233, 0.9)'
+            'rgba(59, 130, 246, 0.9)',   // Blue
+            'rgba(34, 197, 94, 0.9)',   // Green
+            'rgba(251, 146, 60, 0.9)',  // Orange
+            'rgba(139, 92, 246, 0.9)',  // Violet
+            'rgba(149, 70, 167, 0.9)',  // Purple
+            'rgba(245, 158, 11, 0.9)',  // Amber
+            'rgba(239, 68, 68, 0.9)',   // Red
+            'rgba(236, 72, 153, 0.9)',  // Pink
+            'rgba(168, 85, 247, 0.9)',  // Purple
+            'rgba(14, 165, 233, 0.9)'   // Sky Blue
         ];
         return colorMap[category] || fallbackColors[index % fallbackColors.length];
     };
@@ -391,9 +429,11 @@ const CategoryChart = () => {
     useEffect(() => {
         if (!chartRef.current || !chartData || loading) return;
 
+        // Destroy existing chart if it exists
         Chart.getChart(chartRef.current)?.destroy();
         chartInstanceRef.current = null;
 
+        // Don't render chart if no data
         if (chartData.labels.length === 0) {
             return;
         }
@@ -478,8 +518,14 @@ const CategoryChart = () => {
     return <div className="h-80 w-full flex justify-center items-center"><canvas ref={chartRef}></canvas></div>;
 };
 
+// Define order for severity levels (highest to lowest)
+const severityOrder = ['Critical Risk', 'High Risk', 'Medium Risk', 'Low Risk', 'No Risk'];
+
 const SeverityChart = () => {
     const chartRef = useRef(null);
+    const chartInstanceRef = useRef(null);
+    const [chartData, setChartData] = useState(null);
+    const [loading, setLoading] = useState(true);
     const [isDarkMode, setIsDarkMode] = useState(document.documentElement.classList.contains('dark'));
 
     useEffect(() => {
@@ -492,23 +538,97 @@ const SeverityChart = () => {
         return () => observer.disconnect();
     }, []);
 
-    useEffect(() => {
-        if (!chartRef.current) return;
+    // Map backend severity categories to display labels
+    const mapSeverityLabel = (severity) => {
+        const labelMap = {
+            'Critical Risk': 'Critical',
+            'High Risk': 'High',
+            'Medium Risk': 'Medium',
+            'Low Risk': 'Low',
+            'No Risk': 'No Risk'
+        };
+        return labelMap[severity] || severity;
+    };
 
+    // Get color for severity level
+    const getSeverityColor = (severity) => {
+        const colorMap = {
+            'Critical Risk': 'rgba(220, 38, 38, 0.8)',      // #DC2626 Red - Urgent
+            'High Risk': 'rgba(220, 38, 38, 0.8)',          // #DC2626 Red - Same as Critical
+            'Medium Risk': 'rgba(249, 115, 22, 0.8)',       // #F97316 Orange - Warning
+            'Low Risk': 'rgba(251, 191, 36, 0.8)',          // #FBBF24 Yellow/Amber - Caution
+            'No Risk': 'rgba(16, 185, 129, 0.8)'           // #10B981 Green - Safe
+        };
+        return colorMap[severity] || 'rgba(156, 163, 175, 0.8)'; // Gray fallback
+    };
+
+    useEffect(() => {
+        const loadChartData = async () => {
+            setLoading(true);
+            try {
+                const data = await fetchSeverityChartData();
+                if (data && data.length > 0) {
+                    // Sort by severity order (highest to lowest)
+                    const sortedData = [...data].sort((a, b) => {
+                        const indexA = severityOrder.indexOf(a.severity);
+                        const indexB = severityOrder.indexOf(b.severity);
+                        // If not found in order, put at end
+                        if (indexA === -1) return 1;
+                        if (indexB === -1) return -1;
+                        return indexA - indexB;
+                    });
+
+                    const labels = sortedData.map(item => mapSeverityLabel(item.severity));
+                    const counts = sortedData.map(item => item.count);
+                    const colors = sortedData.map(item => getSeverityColor(item.severity));
+                    
+                    setChartData({
+                        labels,
+                        counts,
+                        colors
+                    });
+                } else {
+                    setChartData({
+                        labels: [],
+                        counts: [],
+                        colors: []
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading severity chart data:', error);
+                setChartData({
+                    labels: [],
+                    counts: [],
+                    colors: []
+                });
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        loadChartData();
+    }, []);
+
+    useEffect(() => {
+        if (!chartRef.current || !chartData || loading) return;
+
+        // Destroy existing chart if it exists
         Chart.getChart(chartRef.current)?.destroy();
+        chartInstanceRef.current = null;
+
+        // Don't render chart if no data
+        if (chartData.labels.length === 0) {
+            return;
+        }
 
         const chart = new Chart(chartRef.current, {
             type: 'doughnut',
             data: {
-                labels: ['High', 'Medium', 'Low'],
+                labels: chartData.labels,
                 datasets: [{
                     label: ' Severity',
-                    data: [25, 35, 40],
-                    backgroundColor: [
-                        'rgba(239, 68, 68, 0.8)',
-                        'rgba(251, 146, 60, 0.8)',
-                        'rgba(34, 197, 94, 0.8)'
-                    ],
+                    data: chartData.counts,
+                    backgroundColor: chartData.colors,
                     borderColor: isDarkMode ? 'rgba(15, 23, 42, 0.8)' : 'rgba(255, 255, 255, 0.8)',
                     borderWidth: 3,
                     hoverOffset: 20,
@@ -543,7 +663,7 @@ const SeverityChart = () => {
                                 let label = context.label || '';
                                 let value = context.parsed || 0;
                                 let total = context.dataset.data.reduce((a, b) => a + b, 0);
-                                let percentage = ((value / total) * 100).toFixed(1);
+                                let percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
                                 return `${label}: ${value} (${percentage}%)`;
                             }
                         }
@@ -551,23 +671,151 @@ const SeverityChart = () => {
                 }
             }
         });
-        return () => chart.destroy();
-    }, [isDarkMode]);
+
+        chartInstanceRef.current = chart;
+
+        return () => {
+            if (chartInstanceRef.current) {
+                chartInstanceRef.current.destroy();
+                chartInstanceRef.current = null;
+            }
+        };
+    }, [chartData, loading, isDarkMode]);
+
+    if (loading) {
+        return (
+            <div className="h-80 w-full flex justify-center items-center">
+                <div className="text-gray-400 dark:text-gray-400 text-gray-600">Loading chart data...</div>
+            </div>
+        );
+    }
+
+    if (!chartData || chartData.labels.length === 0) {
+        return (
+            <div className="h-80 w-full flex justify-center items-center">
+                <div className="text-gray-400 dark:text-gray-400 text-gray-600">No severity data available</div>
+            </div>
+        );
+    }
 
     return <div className="h-80 w-full flex justify-center items-center"><canvas ref={chartRef}></canvas></div>;
 };
 
+// --- Risk Gauge Component ---
+
+/*
+const RiskGauge = ({ score, label }) => {
+    const getColor = (score) => {
+        if (score >= 80) return { bg: 'from-red-500 to-rose-600', text: 'text-red-400', ring: 'ring-red-500/20' };
+        if (score >= 50) return { bg: 'from-orange-500 to-amber-600', text: 'text-orange-400', ring: 'ring-orange-500/20' };
+        return { bg: 'from-emerald-500 to-green-600', text: 'text-emerald-400', ring: 'ring-emerald-500/20' };
+    };
+    
+    const colors = getColor(score);
+    const circumference = 2 * Math.PI * 45;
+    const offset = circumference - (score / 100) * circumference;
+    
+    return (
+        <div className="flex flex-col items-center">
+            <div className="relative w-28 h-28">
+                <svg className="transform -rotate-90 w-28 h-28">
+                    <circle
+                        cx="56"
+                        cy="56"
+                        r="45"
+                        stroke="currentColor"
+                        strokeWidth="8"
+                        fill="none"
+                        className="text-slate-700"
+                    />
+                    <circle
+                        cx="56"
+                        cy="56"
+                        r="45"
+                        stroke="url(#gradient)"
+                        strokeWidth="8"
+                        fill="none"
+                        strokeDasharray={circumference}
+                        strokeDashoffset={offset}
+                        strokeLinecap="round"
+                        className="transition-all duration-1000 ease-out"
+                    />
+                    <defs>
+                        <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" className={colors.bg.split(' ')[0].replace('from-', 'stop-')} />
+                            <stop offset="100%" className={colors.bg.split(' ')[1].replace('to-', 'stop-')} />
+                        </linearGradient>
+                    </defs>
+                </svg>
+                <div className="absolute inset-0 flex items-center justify-center">
+                    <span className={`text-2xl font-bold ${colors.text}`}>{score}</span>
+                </div>
+            </div>
+            <span className="mt-2 text-sm text-gray-400 font-medium">{label}</span>
+        </div>
+    );
+};
+*/
+
 // --- View Components ---
+
+const formatCurrency = (value) => {
+    const numericValue = Number(value) || 0;
+    return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'USD',
+        maximumFractionDigits: 0
+    }).format(numericValue);
+};
 
 const DashboardView = ({ setActiveView }) => {
     const [animate, setAnimate] = useState(false);
     const [recentFlaggedTransactions, setRecentFlaggedTransactions] = useState([]);
+    const [dashboardMetrics, setDashboardMetrics] = useState({
+        total_alerts_ytd: 0,
+        total_amount: 0,
+        detected_frauds_current_month: 0,
+        potential_loss_ytd: 0
+    });
+    const [metricsLoading, setMetricsLoading] = useState(true);
     
     useEffect(() => {
         setAnimate(true);
-        fetchRecentFlaggedTransactions().then(data => {
-            setRecentFlaggedTransactions(data);
-        });
+
+        const loadRecentTransactions = async () => {
+            try {
+                const data = await fetchRecentFlaggedTransactions();
+                setRecentFlaggedTransactions(data);
+            } catch (error) {
+                console.error('Error loading recent flagged transactions:', error);
+            }
+        };
+
+        const loadMetrics = async () => {
+            setMetricsLoading(true);
+            try {
+                const data = await fetchDashboardMetrics();
+                setDashboardMetrics({
+                    total_alerts_ytd: data?.total_alerts_ytd || 0,
+                    total_amount: data?.total_amount || 0,
+                    detected_frauds_current_month: data?.detected_frauds_current_month || 0,
+                    potential_loss_ytd: data?.potential_loss_ytd || data?.total_amount || 0
+                });
+            } catch (error) {
+                console.error('Error loading dashboard metrics:', error);
+                setDashboardMetrics({
+                    total_alerts_ytd: 0,
+                    total_amount: 0,
+                    detected_frauds_current_month: 0,
+                    potential_loss_ytd: 0
+                });
+            } finally {
+                setMetricsLoading(false);
+            }
+        };
+
+        loadRecentTransactions();
+        loadMetrics();
     }, []);
 
     return (
@@ -582,7 +830,9 @@ const DashboardView = ({ setActiveView }) => {
                         </div>
                     </div>
                     <h3 className="text-gray-400 dark:text-gray-400 text-gray-600 text-sm font-medium mb-1">Total Alerts (YTD)</h3>
-                    <p className="text-4xl font-bold dark:text-white text-gray-900 mb-2 bg-gradient-to-r from-[#9546A7] to-[#B873D1] dark:from-[#9546A7] dark:to-[#B873D1] bg-clip-text text-transparent">1,428</p>
+                    <p className="text-4xl font-bold dark:text-white text-gray-900 mb-2 bg-gradient-to-r from-[#9546A7] to-[#B873D1] dark:from-[#9546A7] dark:to-[#B873D1] bg-clip-text text-transparent">
+                        {metricsLoading ? '—' : (dashboardMetrics.total_alerts_ytd || 0).toLocaleString()}
+                    </p>
                 </div>
 
                 {/* Potential Loss Card */}
@@ -593,7 +843,9 @@ const DashboardView = ({ setActiveView }) => {
                         </div>
                     </div>
                     <h3 className="text-gray-400 dark:text-gray-400 text-gray-600 text-sm font-medium mb-1">Potential Loss (YTD)</h3>
-                    <p className="text-4xl font-bold dark:text-white text-gray-900 mb-2 bg-gradient-to-r from-rose-400 to-rose-200 dark:from-rose-400 dark:to-rose-200 from-rose-600 to-rose-700 bg-clip-text text-transparent">$76,330</p>
+                    <p className="text-4xl font-bold dark:text-white text-gray-900 mb-2 bg-gradient-to-r from-rose-400 to-rose-200 dark:from-rose-400 dark:to-rose-200 from-rose-600 to-rose-700 bg-clip-text text-transparent">
+                        {metricsLoading ? '—' : formatCurrency(dashboardMetrics.potential_loss_ytd)}
+                    </p>
                 </div>
 
                 {/* Detected Frauds Card */}
@@ -604,7 +856,9 @@ const DashboardView = ({ setActiveView }) => {
                         </div>
                     </div>
                     <h3 className="text-gray-400 dark:text-gray-400 text-gray-600 text-sm font-medium mb-1">Detected Frauds (Current Month)</h3>
-                    <p className="text-4xl font-bold dark:text-white text-gray-900 mb-2 bg-gradient-to-r from-amber-400 to-amber-200 dark:from-amber-400 dark:to-amber-200 from-amber-600 to-amber-700 bg-clip-text text-transparent">280</p>
+                    <p className="text-4xl font-bold dark:text-white text-gray-900 mb-2 bg-gradient-to-r from-amber-400 to-amber-200 dark:from-amber-400 dark:to-amber-200 from-amber-600 to-amber-700 bg-clip-text text-transparent">
+                        {metricsLoading ? '—' : (dashboardMetrics.detected_frauds_current_month || 0).toLocaleString()}
+                    </p>
                 </div>
             </div>
 
@@ -631,6 +885,7 @@ const DashboardView = ({ setActiveView }) => {
                             </div>
                         ) : (
                             recentFlaggedTransactions.map((txn) => {
+                                // Determine styling based on actual status
                                 const isInvestigating = txn.status === 'Investigating' || txn.status === 'Needs Review';
                                 return (
                                     <div key={txn.id || txn.transaction_id} className={`p-4 rounded-xl border transition-all duration-300 hover:scale-105 cursor-pointer ${
@@ -719,7 +974,7 @@ const ScatterPlot = () => {
     useEffect(() => {
         const fetchScatterData = async () => {
             try {
-                const response = await fetch('http://localhost:5001/api/charts/scatter');
+                const response = await fetch(`${apiUrl}/api/charts/scatter`);
                 const result = await response.json();
                 if (result.data && result.data.length > 0) {
                     setChartData(result.data);
@@ -741,12 +996,13 @@ const ScatterPlot = () => {
         return <div className="text-gray-400 dark:text-gray-400 text-gray-600">No data available for scatter plot</div>;
     }
 
+    // Group data by risk level
     const riskLevels = ['Critical Risk', 'High Risk', 'Medium Risk', 'Low Risk'];
     const colorMap = {
-        'Critical Risk': 'rgb(220, 38, 38)',
-        'High Risk': 'rgb(255, 140, 0)',
-        'Medium Risk': 'rgb(59, 130, 246)',
-        'Low Risk': 'rgb(34, 197, 94)'
+        'Critical Risk': 'rgb(220, 38, 38)',      // Red
+        'High Risk': 'rgb(255, 140, 0)',          // Orange/Coral
+        'Medium Risk': 'rgb(59, 130, 246)',       // Blue
+        'Low Risk': 'rgb(34, 197, 94)'            // Green
     };
 
     const traces = riskLevels.map(riskLevel => {
@@ -767,7 +1023,7 @@ const ScatterPlot = () => {
                 }
             }
         };
-    }).filter(trace => trace.x.length > 0);
+    }).filter(trace => trace.x.length > 0); // Remove empty traces
 
     const layout = {
         title: {
@@ -840,46 +1096,59 @@ const DataView = () => {
     const getMLPredictionColor = (category) => {
         if (!category || category === '-') return null;
         const colorMap = {
-            'Critical Risk': 'rgb(220, 38, 38)',
-            'High Risk': 'rgb(255, 140, 0)',
-            'Medium Risk': 'rgb(59, 130, 246)',
-            'Low Risk': 'rgb(34, 197, 94)',
-            'Holiday': 'rgba(239, 68, 68, 1)',
-            'Out of State': 'rgba(14, 165, 233, 1)',
-            'Vehicle Type > 2': 'rgba(168, 85, 247, 1)',
-            'Weekend': 'rgba(236, 72, 153, 1)',
-            'Driver Amount Outlier': 'rgba(59, 130, 246, 1)',
-            'Rush Hour': 'rgba(34, 197, 94, 1)',
-            'Amount Unusually High': 'rgba(251, 146, 60, 1)',
-            'Route Amount Outlier': 'rgba(139, 92, 246, 1)',
-            'Driver Spend Spike': 'rgba(149, 70, 167, 1)',
-            'Overlapping Journey': 'rgba(245, 158, 11, 1)',
-            'Possible Cloning': 'rgba(168, 85, 247, 1)',
-            'Toll Evasion': 'rgba(239, 68, 68, 1)',
-            'Account Takeover': 'rgba(220, 38, 38, 1)',
-            'Card Skimming': 'rgba(236, 72, 153, 1)'
+            // Risk Levels (matching ScatterPlot colors)
+            'Critical Risk': 'rgb(220, 38, 38)', // Red
+            'High Risk': 'rgb(255, 140, 0)', // Orange/Coral
+            'Medium Risk': 'rgb(59, 130, 246)', // Blue
+            'Low Risk': 'rgb(34, 197, 94)', // Green
+            // Fraud Categories
+            'Holiday': 'rgba(239, 68, 68, 1)', // Red
+            'Out of State': 'rgba(14, 165, 233, 1)', // Sky Blue
+            'Vehicle Type > 2': 'rgba(168, 85, 247, 1)', // Purple
+            'Weekend': 'rgba(236, 72, 153, 1)', // Pink
+            'Driver Amount Outlier': 'rgba(59, 130, 246, 1)', // Blue
+            'Rush Hour': 'rgba(34, 197, 94, 1)', // Green
+            'Amount Unusually High': 'rgba(251, 146, 60, 1)', // Orange
+            'Route Amount Outlier': 'rgba(139, 92, 246, 1)', // Violet
+            'Driver Spend Spike': 'rgba(149, 70, 167, 1)', // Purple
+            'Overlapping Journey': 'rgba(245, 158, 11, 1)', // Amber
+            'Possible Cloning': 'rgba(168, 85, 247, 1)', // Purple
+            'Toll Evasion': 'rgba(239, 68, 68, 1)', // Red
+            'Account Takeover': 'rgba(220, 38, 38, 1)', // Dark Red
+            'Card Skimming': 'rgba(236, 72, 153, 1)' // Pink
         };
+        // Try exact match first
         if (colorMap[category]) return colorMap[category];
+        // Try case-insensitive match
         const categoryLower = category.toLowerCase();
         for (const [key, value] of Object.entries(colorMap)) {
             if (key.toLowerCase() === categoryLower) return value;
         }
-        if (categoryLower.includes('critical')) return 'rgb(220, 38, 38)';
-        if (categoryLower.includes('high')) return 'rgb(255, 140, 0)';
-        if (categoryLower.includes('medium')) return 'rgb(59, 130, 246)';
-        if (categoryLower.includes('low')) return 'rgb(34, 197, 94)';
-        return 'rgba(149, 70, 167, 1)';
+        // Check if it contains risk level keywords
+        if (categoryLower.includes('critical')) return 'rgb(220, 38, 38)'; // Red
+        if (categoryLower.includes('high')) return 'rgb(255, 140, 0)'; // Orange
+        if (categoryLower.includes('medium')) return 'rgb(59, 130, 246)'; // Blue
+        if (categoryLower.includes('low')) return 'rgb(34, 197, 94)'; // Green
+        // Fallback to a default color
+        return 'rgba(149, 70, 167, 1)'; // Default purple
     };
 
     const [searchTerm, setSearchTerm] = useState('');
     const [filterStatus, setFilterStatus] = useState('all');
     const [filterMLCategory, setFilterMLCategory] = useState('Critical Risk');
     const [sortColumn, setSortColumn] = useState(null);
-    const [sortDirection, setSortDirection] = useState('asc');
+    const [sortDirection, setSortDirection] = useState('asc'); // 'asc' or 'desc'
     const [transactionData, setTransactionData] = useState([]);
     const [loading, setLoading] = useState(true);
     const [currentPage, setCurrentPage] = useState(1);
-    const itemsPerPage = 15;
+    const itemsPerPage = 15; // rows per page
+    const STATUS_TRANSITIONS = {
+        "No Action Required": [],   // cannot change
+        "Needs Review": ["Resolved - Not Fraud", "Investigating", "Resolved - Fraud"],
+        "Investigating": ["Resolved - Not Fraud", "Resolved - Fraud"],
+        "Resolved - Not Fraud": [],             // cannot change
+        "Resolved - Fraud": []               // cannot change
+    };
 
     useEffect(() => {
         const loadData = async () => {
@@ -896,24 +1165,41 @@ const DataView = () => {
     }, [searchTerm, filterStatus, filterMLCategory, sortColumn, sortDirection]);
 
     const handleStatusChange = (transactionId, newStatus) => {
-        setTransactionData(prevData => 
-            prevData.map(transaction => 
-                (transaction.transaction_id === transactionId || transaction.id === transactionId)
-                    ? { ...transaction, status: newStatus }
-                    : transaction
-            )
+        setTransactionData(prev =>
+            prev.map(t => {
+                if (t.transaction_id !== transactionId && t.id !== transactionId) return t;
+
+                const allowed = STATUS_TRANSITIONS[t.status] || [];
+                if (!allowed.includes(newStatus)) return t; // ignore invalid change
+
+                return { ...t, status: newStatus };
+            })
         );
+
+        // also send to backend
+        updateTransactionStatus(transactionId, newStatus);
+    };
+    const updateTransactionStatus = async (transactionId, newStatus) => {
+        
+        await fetch(`${apiUrl}/api/transactions/update-status`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ transactionId, newStatus }),
+        });
     };
 
     const handleSort = (column) => {
         if (sortColumn === column) {
+            // Toggle direction if same column
             setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
         } else {
+            // New column, start with ascending
             setSortColumn(column);
             setSortDirection('asc');
         }
     };
 
+    // Helper function to render sortable column header
     const SortableHeader = ({ column, label, minWidthClass = 'min-w-[120px]' }) => (
         <th 
             scope="col" 
@@ -935,6 +1221,7 @@ const DataView = () => {
         </th>
     );
 
+    // Helper function to handle null/undefined values
     const formatValue = (value) => {
         if (value === null || value === undefined || value === '') {
             return '-';
@@ -942,6 +1229,7 @@ const DataView = () => {
         return value;
     };
 
+    // Helper function to format dates (MM/DD/YYYY)
     const formatDate = (dateValue) => {
         if (dateValue === null || dateValue === undefined || dateValue === '' || dateValue === '-') {
             return '-';
@@ -950,17 +1238,20 @@ const DataView = () => {
         try {
             const date = new Date(dateValue);
             if (isNaN(date.getTime())) {
-                return '-';
+                return '-'; // Return '-' if invalid date
             }
+
+            // Format as MM/DD/YYYY
             const month = String(date.getMonth() + 1).padStart(2, '0');
             const day = String(date.getDate()).padStart(2, '0');
             const year = date.getFullYear();
             return `${month}/${day}/${year}`;
         } catch (e) {
-            return '-';
+            return '-'; // Return '-' if parsing fails
         }
     };
 
+    // Helper function to format date with time (MM/DD/YYYY HH:MM AM/PM)
     const formatDateTime = (dateValue) => {
         if (dateValue === null || dateValue === undefined || dateValue === '' || dateValue === '-') {
             return '-';
@@ -969,22 +1260,28 @@ const DataView = () => {
         try {
             const date = new Date(dateValue);
             if (isNaN(date.getTime())) {
-                return '-';
+                return '-'; // Return '-' if invalid date
             }
+            
+            // Format as MM/DD/YYYY HH:MM AM/PM
             const month = String(date.getMonth() + 1).padStart(2, '0');
             const day = String(date.getDate()).padStart(2, '0');
             const year = date.getFullYear();
+            
+            // Convert to 12-hour format with AM/PM
             let hours = date.getHours();
             const minutes = String(date.getMinutes()).padStart(2, '0');
             const ampm = hours >= 12 ? 'PM' : 'AM';
             hours = hours % 12;
-            hours = hours ? hours : 12;
+            hours = hours ? hours : 12; // the hour '0' should be '12'
+            
             return `${month}/${day}/${year} ${hours}:${minutes} ${ampm}`;
         } catch (e) {
-            return '-';
+            return '-'; // Return '-' if parsing fails
         }
     };
 
+    // Filter data
     let filteredData = transactionData.filter(row => {
         const id = row.id || '';
         const category = row.category || '';
@@ -999,10 +1296,12 @@ const DataView = () => {
         return matchesSearch && matchesStatusFilter && matchesMLCategoryFilter;
     });
 
+    // Sort data
     if (sortColumn) {
         filteredData = [...filteredData].sort((a, b) => {
             let aValue, bValue;
-            
+   
+            // Numeric columns
             const numericColumns = ['amount', 'ml_predicted_score', 'rule_based_score', 'distance_miles', 
                                    'travel_time_minutes', 'speed_mph', 'plan_rate'];
             if (numericColumns.includes(sortColumn)) {
@@ -1013,6 +1312,7 @@ const DataView = () => {
                 return sortDirection === 'asc' ? comparison : -comparison;
             }
             
+            // Date columns
             const dateColumns = ['transaction_date', 'posting_date', 'entry_time', 'exit_time', 
                                 'prediction_timestamp', 'last_updated'];
             if (dateColumns.includes(sortColumn)) {
@@ -1023,6 +1323,7 @@ const DataView = () => {
                 return sortDirection === 'asc' ? comparison : -comparison;
             }
             
+            // Boolean columns
             const booleanColumns = ['is_anomaly', 'route_instate', 'is_impossible_travel', 'is_rapid_succession',
                                    'flag_rush_hour', 'flag_is_weekend', 'flag_is_holiday', 'flag_overlapping_journey',
                                    'flag_driver_amount_outlier', 'flag_route_amount_outlier', 
@@ -1035,6 +1336,7 @@ const DataView = () => {
                 return sortDirection === 'asc' ? comparison : -comparison;
             }
             
+            // String columns (default)
             aValue = (a[sortColumn] || '').toString().toLowerCase();
             bValue = (b[sortColumn] || '').toString().toLowerCase();
             if (aValue === bValue) return 0;
@@ -1043,12 +1345,16 @@ const DataView = () => {
         });
     }
 
+    // Slice the filtered data for the current page
     const paginatedData = filteredData.slice(
         (currentPage - 1) * itemsPerPage,
         currentPage * itemsPerPage
     );
 
+    // Total pages
     const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+
+
 
     if (loading) return <div>Loading transactions...</div>;
     return (
@@ -1075,10 +1381,10 @@ const DataView = () => {
                             className="px-4 py-3 rounded-xl text-sm font-medium bg-white dark:bg-white/5 dark:backdrop-blur-md text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-white/10 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 dark:focus:border-white/20 transition-all cursor-pointer dark:shadow-[4px_4px_8px_rgba(0,0,0,0.2),-2px_-2px_4px_rgba(255,255,255,0.03)]"
                         >
                             <option value="all" className="bg-slate-800 dark:bg-white/5 bg-white">All Status</option>
-                            <option value="Flagged" className="bg-slate-800 dark:bg-white/5 bg-white">Flagged</option>
+                            <option value="Resolved - Fraud" className="bg-slate-800 dark:bg-white/5 bg-white">Resolved - Fraud</option>
                             <option value="Investigating" className="bg-slate-800 dark:bg-white/5 bg-white">Investigating</option>
                             <option value="Needs Review" className="bg-slate-800 dark:bg-white/5 bg-white">Needs Review</option>
-                            <option value="Resolved" className="bg-slate-800 dark:bg-white/5 bg-white">Resolved</option>
+                            <option value="Resolved - Not Fraud" className="bg-slate-800 dark:bg-white/5 bg-white">Resolved - Not Fraud</option>
                             <option value="No Action Required" className="bg-slate-800 dark:bg-white/5 bg-white">No Action Required</option>
                         </select>
                         <select
@@ -1195,17 +1501,18 @@ const DataView = () => {
                                                 <select
                                                     value={status}
                                                     onChange={(e) => handleStatusChange(row.transaction_id || row.id, e.target.value)}
-                                                    className={`px-2 py-1.5 rounded-lg text-xs font-semibold border-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-0 ${
-                                                        status === 'Investigating' || status === 'Needs Review' ? 'bg-red-500/20 text-red-400 focus:ring-red-500/50' :
-                                                        status === 'Flagged' ? 'bg-amber-500/20 text-amber-400 focus:ring-amber-500/50' :
-                                                        'bg-emerald-500/20 text-emerald-400 focus:ring-emerald-500/50'
-                                                    }`}
+                                                    disabled={STATUS_TRANSITIONS[status].length === 0}   // disable if no edits allowed
+                                                    className={`px-2 py-1.5 rounded-lg text-xs font-semibold border-0 cursor-pointer 
+                                                    ${STATUS_TRANSITIONS[status].length === 0 ? "opacity-50 cursor-not-allowed" : ""}
+                                                    `}
                                                 >
-                                                    <option value="Flagged" className="bg-slate-800 text-amber-400">Flagged</option>
-                                                    <option value="Investigating" className="bg-slate-800 text-red-400">Investigating</option>
-                                                    <option value="Needs Review" className="bg-slate-800 text-red-400">Needs Review</option>
-                                                    <option value="Resolved" className="bg-slate-800 text-emerald-400">Resolved</option>
-                                                    <option value="No Action Required" className="bg-slate-800 text-gray-400">No Action Required</option>
+                                                    {/* Current status appears first */}
+                                                    <option value={status}>{status}</option>
+
+                                                    {/* Only show allowed new statuses */}
+                                                    {STATUS_TRANSITIONS[status].map(option => (
+                                                        <option key={option} value={option}>{option}</option>
+                                                    ))}
                                                 </select>
                                             ) : (
                                                 <span className="text-gray-400 dark:text-gray-400 text-gray-600 text-base">-</span>
@@ -1381,6 +1688,7 @@ const DataView = () => {
                         {totalPages > 0 && (
                             <div className="flex space-x-1">
                                 {[...Array(Math.min(totalPages, 10))].map((_, idx) => {
+                                    // Show page numbers with ellipsis for large page counts
                                     let pageNum;
                                     if (totalPages <= 10) {
                                         pageNum = idx + 1;
@@ -1445,11 +1753,12 @@ const MoonIcon = () => (
 export default function App() {
     const [activeView, setActiveView] = useState('dashboard');
     const [isDarkMode, setIsDarkMode] = useState(() => {
+        // Check localStorage first, then default to light mode
         const saved = localStorage.getItem('theme');
         if (saved) {
             return saved === 'dark';
         }
-        return false;
+        return false; // Default to light mode
     });
 
     const { instance, accounts } = useMsal();

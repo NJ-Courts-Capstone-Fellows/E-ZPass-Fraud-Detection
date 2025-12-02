@@ -1,4 +1,4 @@
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from google.cloud import bigquery
 from flask_cors import CORS
 from dotenv import load_dotenv
@@ -119,9 +119,21 @@ def metrics():
         COUNT(*) AS total_transactions,
         SUM(CASE WHEN is_anomaly = 1 THEN 1 ELSE 0 END) AS total_flagged,
         SUM(CASE WHEN is_anomaly = 1 THEN amount ELSE 0 END) AS total_amount,
-        SUM(CASE WHEN is_anomaly = 1 AND EXTRACT(YEAR FROM transaction_date) = EXTRACT(YEAR FROM CURRENT_DATE()) THEN 1 ELSE 0 END) AS total_alerts_ytd,
-        SUM(CASE WHEN is_anomaly = 1 AND EXTRACT(YEAR FROM transaction_date) = EXTRACT(YEAR FROM CURRENT_DATE()) 
-                 AND EXTRACT(MONTH FROM transaction_date) = EXTRACT(MONTH FROM CURRENT_DATE()) THEN 1 ELSE 0 END) AS detected_frauds_current_month
+        SUM(CASE 
+                WHEN is_anomaly = 1 
+                     AND EXTRACT(YEAR FROM transaction_date) = EXTRACT(YEAR FROM CURRENT_DATE())
+                THEN amount 
+                ELSE 0 
+            END) AS potential_loss_ytd,
+        SUM(CASE WHEN is_anomaly = 1 
+                 AND EXTRACT(YEAR FROM transaction_date) = EXTRACT(YEAR FROM CURRENT_DATE()) THEN 1 ELSE 0 END) AS total_alerts_ytd,
+        SUM(CASE 
+                WHEN ml_predicted_category IN ('Critical Risk', 'High Risk')
+                     AND EXTRACT(YEAR FROM transaction_date) = EXTRACT(YEAR FROM CURRENT_DATE())
+                     AND EXTRACT(MONTH FROM transaction_date) = EXTRACT(MONTH FROM CURRENT_DATE())
+                THEN 1 
+                ELSE 0 
+            END) AS detected_frauds_current_month
     FROM `njc-ezpass.ezpass_data.master_viz`
     """
     try:
@@ -132,7 +144,8 @@ def metrics():
             "total_flagged": int(metrics.get("total_flagged", 0)),
             "total_amount": float(metrics.get("total_amount", 0)),
             "total_alerts_ytd": int(metrics.get("total_alerts_ytd", 0)),
-            "detected_frauds_current_month": int(metrics.get("detected_frauds_current_month", 0))
+            "detected_frauds_current_month": int(metrics.get("detected_frauds_current_month", 0)),
+            "potential_loss_ytd": float(metrics.get("potential_loss_ytd", 0))
         })
     except Exception as e:
         print(f"Error fetching metrics: {str(e)}")
@@ -141,7 +154,8 @@ def metrics():
             "total_flagged": 0,
             "total_amount": 0,
             "total_alerts_ytd": 0,
-            "detected_frauds_current_month": 0
+            "detected_frauds_current_month": 0,
+            "potential_loss_ytd": 0
         }), 500
 
 #Fraud by Category for chart
@@ -279,6 +293,54 @@ def timeseries_chart():
     except Exception as e:
         print(f"Error fetching timeseries chart data: {str(e)}")
         return jsonify({"data": [], "error": str(e)}), 500
+    
+# Allowed status transitions
+STATUS_TRANSITIONS = {
+    "No Action Required": [],
+    "Needs Review": ["Resolved - Fraud", "Investigating", "Resolved - Fraud"],
+    "Investigating": ["Resolved - Fraud", "Resolved - Fraud"],
+    "Resolved - Fraud": [],
+    "Resolved - Fraud": []
+}
+
+@app.route("/api/transactions/update-status", methods=["POST"])
+def update_status():
+    data = request.get_json()
+    transaction_id = data.get("transactionId")
+    new_status = data.get("newStatus")
+
+    # Get current status
+    query = f"""
+        SELECT status
+        FROM `njc-ezpass.ezpass_data.master_viz`
+        WHERE transaction_id = '{transaction_id}'
+    """
+    results = client.query(query).result()
+    rows = list(results)
+    
+    if not rows:
+        return jsonify({"error": "Transaction not found"}), 404
+
+    current_status = rows[0]["status"]
+
+    # Validate transition
+    if new_status not in STATUS_TRANSITIONS.get(current_status, []):
+        return jsonify({
+            "error": "Invalid status transition",
+            "allowed": STATUS_TRANSITIONS.get(current_status, [])
+        }), 400
+
+    # Update status
+    update_query = f"""
+        UPDATE `njc-ezpass.ezpass_data.master_viz`
+        SET status = '{new_status}', last_updated = CURRENT_TIMESTAMP()
+        WHERE transaction_id = '{transaction_id}'
+    """
+
+    client.query(update_query).result()
+
+    return jsonify({"success": True})
+
 
 if __name__ == "__main__":
     app.run(debug=True, port=5001)
