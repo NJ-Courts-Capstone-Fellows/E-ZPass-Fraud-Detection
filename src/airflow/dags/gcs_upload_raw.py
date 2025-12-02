@@ -281,6 +281,7 @@ def rename_files(**context):
 def upload_to_gcs(**context):
     """
     Step 4: Upload renamed files to Google Cloud Storage
+    Checks if file exists in GCS before uploading - skips if already exists
     """
     from google.cloud import storage
     
@@ -305,14 +306,25 @@ def upload_to_gcs(**context):
     bucket = client.bucket(GCS_BUCKET)
     
     uploaded_count = 0
+    skipped_count = 0
     for local_file in renamed_files:
         filename = Path(local_file).name
         blob_name = f"{GCS_PREFIX.rstrip('/')}/{filename}"
         
-        # print(f"\nUploading: {filename}")
+        # print(f"\nChecking: {filename}")
         
         try:
             blob = bucket.blob(blob_name)
+            
+            # Check if file already exists in GCS
+            if blob.exists():
+                # print(f"  ⊘ File already exists in GCS, skipping upload")
+                # print(f"    Location: gs://{GCS_BUCKET}/{blob_name}")
+                skipped_count += 1
+                continue
+            
+            # File doesn't exist, proceed with upload
+            # print(f"  Uploading: {filename}")
             blob.upload_from_filename(local_file)
             
             # print(f"  ✓ Uploaded to: gs://{GCS_BUCKET}/{blob_name}")
@@ -324,11 +336,13 @@ def upload_to_gcs(**context):
     
     # print(f"\nUPLOAD SUMMARY")
     # print(f"Successfully uploaded: {uploaded_count}/{len(renamed_files)} file(s)")
+    # print(f"Skipped (already exists): {skipped_count} file(s)")
     # print(f"Bucket: gs://{GCS_BUCKET}")
     # print(f"Prefix: {GCS_PREFIX}")
     
     # Push to XCom for next task
     context['ti'].xcom_push(key='uploaded_count', value=uploaded_count)
+    context['ti'].xcom_push(key='skipped_count', value=skipped_count)
     
     return uploaded_count
 
@@ -446,7 +460,7 @@ with DAG(
     'gcs_upload_raw',
     default_args=default_args,
     description='Detect, normalize, rename, and upload CSV files to GCS',
-    schedule_interval='@hourly',
+    schedule_interval=None,  # Manual trigger only
     catchup=False,
     tags=['gcs', 'csv', 'upload', 'ezpass', 'etl'],
 ) as dag:

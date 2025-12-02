@@ -118,9 +118,32 @@ def detect_new_files(**context):
     
     return new_files
 
+def delete_bronze_table(**context):
+    """
+    Step 2: Delete the bronze table if it exists
+    """
+    from google.cloud import bigquery
+    
+    if not GCS_PROJECT_ID:
+        raise ValueError("GCS_PROJECT_ID must be set")
+    
+    # Initialize BigQuery client
+    client = bigquery.Client(project=GCS_PROJECT_ID)
+    table_id = f"{GCS_PROJECT_ID}.{BIGQUERY_DATASET}.{BIGQUERY_RAW_TABLE}"
+    
+    try:
+        client.delete_table(table_id, not_found_ok=True)
+        print(f"✓ Deleted bronze table: {table_id}")
+    except Exception as e:
+        print(f"⚠️ Could not delete table {table_id}: {str(e)}")
+        # Don't raise - table might not exist, which is fine
+        pass
+    
+    return table_id
+
 def create_dataset(**context):
     """
-    Step 2: Create BigQuery dataset if it doesn't exist
+    Step 3: Create BigQuery dataset if it doesn't exist
     """
     from google.cloud import bigquery
     
@@ -153,7 +176,7 @@ def create_dataset(**context):
 
 def load_gcs_to_bigquery(**context):
     """
-    Step 3: Load new CSV files from GCS into BigQuery bronze table
+    Step 4: Load new CSV files from GCS into BigQuery bronze table
     Only loads files that don't already exist in BigQuery
     """
     from google.cloud import bigquery
@@ -313,7 +336,7 @@ def load_gcs_to_bigquery(**context):
 
 def verify_bigquery_load(**context):
     """
-    Step 4: Verify data was loaded correctly into BigQuery
+    Step 5: Verify data was loaded correctly into BigQuery
     """
     from google.cloud import bigquery
     
@@ -394,7 +417,7 @@ with DAG(
     'gcs_to_bigquery_pipeline',
     default_args=default_args,
     description='Load CSV files from GCS into BigQuery bronze table',
-    schedule_interval='@hourly',
+    schedule_interval=None,  # Manual trigger only
     catchup=False,
     tags=['bigquery', 'gcs', 'bronze', 'ezpass', 'etl'],
 ) as dag:
@@ -405,21 +428,28 @@ with DAG(
         provide_context=True,
     )
     
-    # Task 2: Create or verify dataset
+    # Task 2: Delete bronze table if it exists
+    delete_bronze_task = PythonOperator(
+        task_id='delete_bronze_table',
+        python_callable=delete_bronze_table,
+        provide_context=True,
+    )
+    
+    # Task 3: Create or verify dataset
     create_dataset_task = PythonOperator(
         task_id='create_dataset',
         python_callable=create_dataset,
         provide_context=True,
     )
     
-    # Task 3: Load to BigQuery
+    # Task 4: Load to BigQuery
     load_to_bq_task = PythonOperator(
         task_id='load_to_bigquery',
         python_callable=load_gcs_to_bigquery,
         provide_context=True,
     )
     
-    # Task 4: Verify load
+    # Task 5: Verify load
     verify_task = PythonOperator(
         task_id='verify_bigquery_load',
         python_callable=verify_bigquery_load,
@@ -427,4 +457,4 @@ with DAG(
     )
     
     # Execution order
-    detect_new_files_task >> create_dataset_task >> load_to_bq_task >> verify_task
+    detect_new_files_task >> delete_bronze_task >> create_dataset_task >> load_to_bq_task >> verify_task
