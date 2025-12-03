@@ -33,11 +33,10 @@ threat_severity AS (
     SELECT
     *,
     CASE 
-        WHEN rule_based_score >= 50 THEN 'critical risk'
-        WHEN rule_based_score >= 30 THEN 'high risk'
-        WHEN rule_based_score >= 15 THEN 'medium risk'
-        WHEN rule_based_score >= 2 THEN 'low risk'
-        ELSE 'no risk'
+        WHEN rule_based_score >= 30 THEN 'Critical Risk'
+        WHEN rule_based_score >= 15 THEN 'Medium Risk'
+        WHEN rule_based_score >= 2 THEN 'Low Risk'
+        ELSE 'No Risk'
     END AS threat_severity
 
     FROM anomaly_scoring
