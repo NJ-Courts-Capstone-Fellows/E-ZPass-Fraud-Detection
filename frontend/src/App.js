@@ -1150,11 +1150,28 @@ const DataView = () => {
         "Resolved - Fraud": []               // cannot change
     };
 
+    // Detect table type from data
+    const detectTableType = (data) => {
+        if (!data || data.length === 0) return 'master_viz'; // default
+        const firstRow = data[0];
+        // gold_automation has threat_severity, master_viz has ml_predicted_category
+        if (firstRow.hasOwnProperty('threat_severity')) {
+            return 'gold_automation';
+        }
+        return 'master_viz';
+    };
+
+    const [tableType, setTableType] = useState('master_viz');
+
     useEffect(() => {
         const loadData = async () => {
             setLoading(true);
             const data = await fetchTransactions();
             setTransactionData(data);
+            // Detect table type from the data
+            if (data && data.length > 0) {
+                setTableType(detectTableType(data));
+            }
             setLoading(false);
         };
         loadData();
@@ -1283,16 +1300,18 @@ const DataView = () => {
 
     // Filter data
     let filteredData = transactionData.filter(row => {
-        const id = row.id || '';
-        const category = row.category || '';
+        const id = row.id || row.transaction_id || '';
+        const category = row.category || row.ml_predicted_category || row.threat_severity || '';
         const tagPlate = row.tag_plate_number || row.tagPlate || '';
         const matchesSearch = id.toLowerCase().includes(searchTerm.toLowerCase()) ||
                             category.toLowerCase().includes(searchTerm.toLowerCase()) ||
                             tagPlate.toLowerCase().includes(searchTerm.toLowerCase());
         const matchesStatusFilter = filterStatus === 'all' || row.status === filterStatus;
+        // For master_viz: use ml_predicted_category, for gold_automation: use threat_severity
+        const riskCategory = tableType === 'gold_automation' ? row.threat_severity : row.ml_predicted_category;
         const matchesMLCategoryFilter = filterMLCategory === 'all' || 
-                                       (row.ml_predicted_category && 
-                                        row.ml_predicted_category.toLowerCase() === filterMLCategory.toLowerCase());
+                                       (riskCategory && 
+                                        riskCategory.toLowerCase() === filterMLCategory.toLowerCase());
         return matchesSearch && matchesStatusFilter && matchesMLCategoryFilter;
     });
 
@@ -1324,10 +1343,11 @@ const DataView = () => {
             }
             
             // Boolean columns
-            const booleanColumns = ['is_anomaly', 'route_instate', 'is_impossible_travel', 'is_rapid_succession',
+            const booleanColumns = ['is_anomaly', 'flag_fraud', 'route_instate', 'is_impossible_travel', 'is_rapid_succession',
                                    'flag_rush_hour', 'flag_is_weekend', 'flag_is_holiday', 'flag_overlapping_journey',
                                    'flag_driver_amount_outlier', 'flag_route_amount_outlier', 
-                                   'flag_amount_unusually_high', 'flag_driver_spend_spike'];
+                                   'flag_amount_unusually_high', 'flag_driver_spend_spike',
+                                   'flag_vehicle_type', 'flag_amount_gt_29', 'flag_is_out_of_state'];
             if (booleanColumns.includes(sortColumn)) {
                 aValue = a[sortColumn] === true ? 1 : (a[sortColumn] === false ? 0 : -1);
                 bValue = b[sortColumn] === true ? 1 : (b[sortColumn] === false ? 0 : -1);
@@ -1409,44 +1429,108 @@ const DataView = () => {
                         <thead className="bg-white dark:bg-white/5 border-b border-gray-300 dark:border-white/10">
                             <tr>
                                 <SortableHeader column="status" label="Status" minWidthClass="min-w-[120px]" />
-                                <SortableHeader column="ml_predicted_category" label="ML Prediction" minWidthClass="min-w-[150px]" />
-                                <SortableHeader column="is_anomaly" label="Is Anomaly" minWidthClass="min-w-[100px]" />
+                                {/* Conditional header based on table type */}
+                                {tableType === 'gold_automation' ? (
+                                    <SortableHeader column="threat_severity" label="Threat Severity" minWidthClass="min-w-[150px]" />
+                                ) : (
+                                    <SortableHeader column="ml_predicted_category" label="ML Prediction" minWidthClass="min-w-[150px]" />
+                                )}
+                                {/* Conditional anomaly/fraud header */}
+                                {tableType === 'gold_automation' ? (
+                                    <SortableHeader column="flag_fraud" label="Flag Fraud" minWidthClass="min-w-[100px]" />
+                                ) : (
+                                    <SortableHeader column="is_anomaly" label="Is Anomaly" minWidthClass="min-w-[100px]" />
+                                )}
                                 <SortableHeader column="rule_based_score" label="Rule-Based Score" minWidthClass="min-w-[120px]" />
-                                <SortableHeader column="ml_predicted_score" label="ML Predicted Score" minWidthClass="min-w-[120px]" />
+                                {/* ML Predicted Score only for master_viz */}
+                                {tableType === 'master_viz' && (
+                                    <SortableHeader column="ml_predicted_score" label="ML Predicted Score" minWidthClass="min-w-[120px]" />
+                                )}
                                 <SortableHeader column="amount" label="Amount" minWidthClass="min-w-[100px]" />
                                 <SortableHeader column="transaction_id" label="Transaction ID" minWidthClass="min-w-[120px]" />
                                 <SortableHeader column="tag_plate_number" label="Tag/Plate Number" minWidthClass="min-w-[140px]" />
                                 <SortableHeader column="transaction_date" label="Transaction Date" minWidthClass="min-w-[120px]" />
-                                <SortableHeader column="posting_date" label="Posting Date" minWidthClass="min-w-[120px]" />
+                                {/* Posting Date only for master_viz */}
+                                {tableType === 'master_viz' && (
+                                    <SortableHeader column="posting_date" label="Posting Date" minWidthClass="min-w-[120px]" />
+                                )}
                                 <SortableHeader column="agency" label="Agency" minWidthClass="min-w-[100px]" />
-                                <SortableHeader column="route_instate" label="State" minWidthClass="min-w-[100px]" />
-                                <SortableHeader column="route_name" label="Route Name" minWidthClass="min-w-[120px]" />
-                                <SortableHeader column="route_instate" label="Location Scope" minWidthClass="min-w-[100px]" />
+                                {/* Agency Name only for gold_automation */}
+                                {tableType === 'gold_automation' && (
+                                    <SortableHeader column="agency_name" label="Agency Name" minWidthClass="min-w-[120px]" />
+                                )}
+                                <SortableHeader column="state_name" label="State" minWidthClass="min-w-[100px]" />
+                                {/* Route Name only for master_viz */}
+                                {tableType === 'master_viz' && (
+                                    <>
+                                        <SortableHeader column="route_name" label="Route Name" minWidthClass="min-w-[120px]" />
+                                        <SortableHeader column="route_instate" label="Location Scope" minWidthClass="min-w-[100px]" />
+                                    </>
+                                )}
                                 <SortableHeader column="entry_time" label="Entry Time" minWidthClass="min-w-[150px]" />
                                 <SortableHeader column="entry_plaza" label="Entry Plaza" minWidthClass="min-w-[100px]" />
-                                <SortableHeader column="entry_lane" label="Entry Lane" minWidthClass="min-w-[100px]" />
+                                {/* Entry Plaza Name only for gold_automation */}
+                                {tableType === 'gold_automation' && (
+                                    <SortableHeader column="entry_plaza_name" label="Entry Plaza Name" minWidthClass="min-w-[140px]" />
+                                )}
+                                {/* Entry Lane only for master_viz */}
+                                {tableType === 'master_viz' && (
+                                    <SortableHeader column="entry_lane" label="Entry Lane" minWidthClass="min-w-[100px]" />
+                                )}
                                 <SortableHeader column="exit_time" label="Exit Time" minWidthClass="min-w-[150px]" />
                                 <SortableHeader column="exit_plaza" label="Exit Plaza" minWidthClass="min-w-[100px]" />
-                                <SortableHeader column="exit_lane" label="Exit Lane" minWidthClass="min-w-[100px]" />
+                                {/* Exit Plaza Name only for gold_automation */}
+                                {tableType === 'gold_automation' && (
+                                    <SortableHeader column="exit_plaza_name" label="Exit Plaza Name" minWidthClass="min-w-[140px]" />
+                                )}
+                                {/* Exit Lane only for master_viz */}
+                                {tableType === 'master_viz' && (
+                                    <SortableHeader column="exit_lane" label="Exit Lane" minWidthClass="min-w-[100px]" />
+                                )}
+                                {/* Vehicle Type Code only for gold_automation */}
+                                {tableType === 'gold_automation' && (
+                                    <SortableHeader column="vehicle_type_code" label="Vehicle Type Code" minWidthClass="min-w-[120px]" />
+                                )}
                                 <SortableHeader column="vehicle_type_name" label="Vehicle Type" minWidthClass="min-w-[120px]" />
-                                <SortableHeader column="plan_rate" label="Plan Rate" minWidthClass="min-w-[100px]" />
-                                <SortableHeader column="fare_type" label="Fare Type" minWidthClass="min-w-[100px]" />
-                                <SortableHeader column="distance_miles" label="Distance (mi)" minWidthClass="min-w-[100px]" />
-                                <SortableHeader column="travel_time_minutes" label="Travel Time (min)" minWidthClass="min-w-[120px]" />
-                                <SortableHeader column="speed_mph" label="Speed (mph)" minWidthClass="min-w-[100px]" />
-                                <SortableHeader column="travel_time_category" label="Travel Category" minWidthClass="min-w-[120px]" />
-                                <SortableHeader column="is_impossible_travel" label="Impossible Travel" minWidthClass="min-w-[100px]" />
-                                <SortableHeader column="is_rapid_succession" label="Rapid Succession" minWidthClass="min-w-[120px]" />
-                                <SortableHeader column="flag_rush_hour" label="Rush Hour" minWidthClass="min-w-[100px]" />
+                                {/* Plan Rate and Fare Type only for master_viz */}
+                                {tableType === 'master_viz' && (
+                                    <>
+                                        <SortableHeader column="plan_rate" label="Plan Rate" minWidthClass="min-w-[100px]" />
+                                        <SortableHeader column="fare_type" label="Fare Type" minWidthClass="min-w-[100px]" />
+                                    </>
+                                )}
+                                {/* Distance, Travel Time, Speed only for master_viz */}
+                                {tableType === 'master_viz' && (
+                                    <>
+                                        <SortableHeader column="distance_miles" label="Distance (mi)" minWidthClass="min-w-[100px]" />
+                                        <SortableHeader column="travel_time_minutes" label="Travel Time (min)" minWidthClass="min-w-[120px]" />
+                                        <SortableHeader column="speed_mph" label="Speed (mph)" minWidthClass="min-w-[100px]" />
+                                        <SortableHeader column="travel_time_category" label="Travel Category" minWidthClass="min-w-[120px]" />
+                                        <SortableHeader column="is_impossible_travel" label="Impossible Travel" minWidthClass="min-w-[100px]" />
+                                        <SortableHeader column="is_rapid_succession" label="Rapid Succession" minWidthClass="min-w-[120px]" />
+                                        <SortableHeader column="flag_rush_hour" label="Rush Hour" minWidthClass="min-w-[100px]" />
+                                        <SortableHeader column="flag_overlapping_journey" label="Overlapping Journey" minWidthClass="min-w-[140px]" />
+                                        <SortableHeader column="flag_driver_amount_outlier" label="Driver Amount Outlier" minWidthClass="min-w-[140px]" />
+                                        <SortableHeader column="flag_route_amount_outlier" label="Route Amount Outlier" minWidthClass="min-w-[140px]" />
+                                        <SortableHeader column="flag_amount_unusually_high" label="Amount Unusually High" minWidthClass="min-w-[140px]" />
+                                        <SortableHeader column="flag_driver_spend_spike" label="Driver Spend Spike" minWidthClass="min-w-[140px]" />
+                                        <SortableHeader column="prediction_timestamp" label="Prediction Timestamp" minWidthClass="min-w-[150px]" />
+                                    </>
+                                )}
+                                {/* Gold automation specific flags */}
+                                {tableType === 'gold_automation' && (
+                                    <>
+                                        <SortableHeader column="flag_vehicle_type" label="Flag Vehicle Type" minWidthClass="min-w-[140px]" />
+                                        <SortableHeader column="flag_amount_gt_29" label="Flag Amount > 29" minWidthClass="min-w-[140px]" />
+                                        <SortableHeader column="flag_is_out_of_state" label="Flag Out of State" minWidthClass="min-w-[140px]" />
+                                    </>
+                                )}
                                 <SortableHeader column="flag_is_weekend" label="Weekend" minWidthClass="min-w-[100px]" />
                                 <SortableHeader column="flag_is_holiday" label="Holiday" minWidthClass="min-w-[100px]" />
-                                <SortableHeader column="flag_overlapping_journey" label="Overlapping Journey" minWidthClass="min-w-[140px]" />
-                                <SortableHeader column="flag_driver_amount_outlier" label="Driver Amount Outlier" minWidthClass="min-w-[140px]" />
-                                <SortableHeader column="flag_route_amount_outlier" label="Route Amount Outlier" minWidthClass="min-w-[140px]" />
-                                <SortableHeader column="flag_amount_unusually_high" label="Amount Unusually High" minWidthClass="min-w-[140px]" />
-                                <SortableHeader column="flag_driver_spend_spike" label="Driver Spend Spike" minWidthClass="min-w-[140px]" />
-                                <SortableHeader column="prediction_timestamp" label="Prediction Timestamp" minWidthClass="min-w-[150px]" />
-                                <SortableHeader column="last_updated" label="Last Updated" minWidthClass="min-w-[150px]" />
+                                {/* Last Updated only for master_viz */}
+                                {tableType === 'master_viz' && (
+                                    <SortableHeader column="last_updated" label="Last Updated" minWidthClass="min-w-[150px]" />
+                                )}
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-700/50 dark:divide-slate-700/50 divide-gray-200">
@@ -1473,11 +1557,22 @@ const DataView = () => {
                                 const travelTimeMinutes = row.travel_time_minutes !== null && row.travel_time_minutes !== undefined ? parseFloat(row.travel_time_minutes).toFixed(1) : '-';
                                 const speedMph = row.speed_mph !== null && row.speed_mph !== undefined ? parseFloat(row.speed_mph).toFixed(1) : '-';
                                 const travelCategory = formatValue(row.travel_time_category);
+                                // Table type specific values
                                 const isAnomaly = row.is_anomaly !== null && row.is_anomaly !== undefined ? (row.is_anomaly ? 'Yes' : 'No') : '-';
+                                const flagFraud = row.flag_fraud !== null && row.flag_fraud !== undefined ? (row.flag_fraud ? 'Yes' : 'No') : '-';
                                 const ruleBasedScore = row.rule_based_score !== null && row.rule_based_score !== undefined ? parseFloat(row.rule_based_score).toFixed(2) : '-';
                                 const mlPredictedScore = row.ml_predicted_score !== null && row.ml_predicted_score !== undefined ? parseFloat(row.ml_predicted_score).toFixed(4) : '-';
                                 const mlPredictedCategory = formatValue(row.ml_predicted_category);
+                                const threatSeverity = formatValue(row.threat_severity);
                                 const status = formatValue(row.status);
+                                // Gold automation specific values
+                                const agencyName = formatValue(row.agency_name);
+                                const entryPlazaName = formatValue(row.entry_plaza_name);
+                                const exitPlazaName = formatValue(row.exit_plaza_name);
+                                const vehicleTypeCode = formatValue(row.vehicle_type_code);
+                                const flagVehicleType = row.flag_vehicle_type !== null && row.flag_vehicle_type !== undefined ? (row.flag_vehicle_type ? 'Yes' : 'No') : '-';
+                                const flagAmountGt29 = row.flag_amount_gt_29 !== null && row.flag_amount_gt_29 !== undefined ? (row.flag_amount_gt_29 ? 'Yes' : 'No') : '-';
+                                const flagIsOutOfState = row.flag_is_out_of_state !== null && row.flag_is_out_of_state !== undefined ? (row.flag_is_out_of_state ? 'Yes' : 'No') : '-';
                                 const isImpossibleTravel = row.is_impossible_travel !== null && row.is_impossible_travel !== undefined ? (row.is_impossible_travel ? 'Yes' : 'No') : '-';
                                 const isRapidSuccession = row.is_rapid_succession !== null && row.is_rapid_succession !== undefined ? (row.is_rapid_succession ? 'Yes' : 'No') : '-';
                                 const flagRushHour = row.flag_rush_hour !== null && row.flag_rush_hour !== undefined ? (row.flag_rush_hour ? 'Yes' : 'No') : '-';
@@ -1518,33 +1613,53 @@ const DataView = () => {
                                                 <span className="text-gray-400 dark:text-gray-400 text-gray-600 text-base">-</span>
                                             )}
                                         </td>
+                                        {/* ML Prediction / Threat Severity */}
                                         <td className="px-4 py-4 whitespace-nowrap">
-                                            {mlPredictedCategory !== '-' ? (
-                                                <span className={`inline-block px-2 py-1 rounded-lg text-xs font-semibold ${
-                                                    mlPredictedCategory?.toLowerCase().includes('critical') ? 'bg-red-500/20 text-red-400 ring-1 ring-red-500/30' :
-                                                    mlPredictedCategory?.toLowerCase().includes('high') ? 'bg-orange-500/20 text-orange-400 ring-1 ring-orange-500/30' :
-                                                    mlPredictedCategory?.toLowerCase().includes('medium') ? 'bg-yellow-500/20 text-yellow-400 ring-1 ring-yellow-500/30' :
-                                                    'bg-green-500/20 text-green-400 ring-1 ring-green-500/30'
-                                                }`}>
-                                                    {mlPredictedCategory}
-                                                </span>
+                                            {tableType === 'gold_automation' ? (
+                                                threatSeverity !== '-' ? (
+                                                    <span className={`inline-block px-2 py-1 rounded-lg text-xs font-semibold ${
+                                                        threatSeverity?.toLowerCase().includes('critical') ? 'bg-red-500/20 text-red-400 ring-1 ring-red-500/30' :
+                                                        threatSeverity?.toLowerCase().includes('high') ? 'bg-orange-500/20 text-orange-400 ring-1 ring-orange-500/30' :
+                                                        threatSeverity?.toLowerCase().includes('medium') ? 'bg-yellow-500/20 text-yellow-400 ring-1 ring-yellow-500/30' :
+                                                        'bg-green-500/20 text-green-400 ring-1 ring-green-500/30'
+                                                    }`}>
+                                                        {threatSeverity}
+                                                    </span>
+                                                ) : (
+                                                    <span className="text-gray-400 dark:text-gray-400 text-gray-600 text-base">-</span>
+                                                )
                                             ) : (
-                                                <span className="text-gray-400 dark:text-gray-400 text-gray-600 text-base">-</span>
+                                                mlPredictedCategory !== '-' ? (
+                                                    <span className={`inline-block px-2 py-1 rounded-lg text-xs font-semibold ${
+                                                        mlPredictedCategory?.toLowerCase().includes('critical') ? 'bg-red-500/20 text-red-400 ring-1 ring-red-500/30' :
+                                                        mlPredictedCategory?.toLowerCase().includes('high') ? 'bg-orange-500/20 text-orange-400 ring-1 ring-orange-500/30' :
+                                                        mlPredictedCategory?.toLowerCase().includes('medium') ? 'bg-yellow-500/20 text-yellow-400 ring-1 ring-yellow-500/30' :
+                                                        'bg-green-500/20 text-green-400 ring-1 ring-green-500/30'
+                                                    }`}>
+                                                        {mlPredictedCategory}
+                                                    </span>
+                                                ) : (
+                                                    <span className="text-gray-400 dark:text-gray-400 text-gray-600 text-base">-</span>
+                                                )
                                             )}
                                         </td>
+                                        {/* Is Anomaly / Flag Fraud */}
                                         <td className="px-4 py-4 whitespace-nowrap text-gray-300 dark:text-gray-300 text-gray-700 text-base">
-                                            {isAnomaly}
+                                            {tableType === 'gold_automation' ? flagFraud : isAnomaly}
                                         </td>
                                         <td className="px-4 py-4 whitespace-nowrap text-gray-300 dark:text-gray-300 text-gray-700 text-base">
                                             {ruleBasedScore}
                                         </td>
-                                        <td className="px-4 py-4 whitespace-nowrap text-base">
-                                            <span 
-                                                style={{ color: getMLPredictionColor(mlPredictedCategory) || 'inherit' }}
-                                            >
-                                                {mlPredictedScore}
-                                            </span>
-                                        </td>
+                                        {/* ML Predicted Score only for master_viz */}
+                                        {tableType === 'master_viz' && (
+                                            <td className="px-4 py-4 whitespace-nowrap text-base">
+                                                <span 
+                                                    style={{ color: getMLPredictionColor(mlPredictedCategory) || 'inherit' }}
+                                                >
+                                                    {mlPredictedScore}
+                                                </span>
+                                            </td>
+                                        )}
                                         <td className="px-4 py-4 whitespace-nowrap">
                                             <span className="font-semibold text-black dark:text-white text-base">{amount}</span>
                                         </td>
@@ -1557,9 +1672,12 @@ const DataView = () => {
                                         <td className="px-4 py-4 whitespace-nowrap text-gray-300 dark:text-gray-300 text-gray-700 text-base">
                                             {transactionDate}
                                         </td>
-                                        <td className="px-4 py-4 whitespace-nowrap text-gray-300 dark:text-gray-300 text-gray-700 text-base">
-                                            {postingDate}
-                                        </td>
+                                        {/* Posting Date only for master_viz */}
+                                        {tableType === 'master_viz' && (
+                                            <td className="px-4 py-4 whitespace-nowrap text-gray-300 dark:text-gray-300 text-gray-700 text-base">
+                                                {postingDate}
+                                            </td>
+                                        )}
                                         <td className="px-4 py-4 whitespace-nowrap">
                                             {agency !== '-' ? (
                                                 <span className={`inline-block px-2 py-1 rounded-lg text-xs font-semibold ${
@@ -1572,90 +1690,152 @@ const DataView = () => {
                                                 <span className="text-gray-400 dark:text-gray-400 text-gray-600 text-base">-</span>
                                             )}
                                         </td>
+                                        {/* Agency Name only for gold_automation */}
+                                        {tableType === 'gold_automation' && (
+                                            <td className="px-4 py-4 whitespace-nowrap text-gray-300 dark:text-gray-300 text-gray-700 text-base">
+                                                {agencyName}
+                                            </td>
+                                        )}
                                         <td className="px-4 py-4 whitespace-nowrap text-gray-300 dark:text-gray-300 text-gray-700 text-base">
                                             {stateName}
                                         </td>
-                                        <td className="px-4 py-4 whitespace-nowrap text-gray-300 dark:text-gray-300 text-gray-700 text-base">
-                                            {routeName}
-                                        </td>
-                                        <td className="px-4 py-4 whitespace-nowrap text-gray-300 dark:text-gray-300 text-gray-700 text-base">
-                                            {routeInstate}
-                                        </td>
+                                        {/* Route Name only for master_viz */}
+                                        {tableType === 'master_viz' && (
+                                            <>
+                                                <td className="px-4 py-4 whitespace-nowrap text-gray-300 dark:text-gray-300 text-gray-700 text-base">
+                                                    {routeName}
+                                                </td>
+                                                <td className="px-4 py-4 whitespace-nowrap text-gray-300 dark:text-gray-300 text-gray-700 text-base">
+                                                    {routeInstate}
+                                                </td>
+                                            </>
+                                        )}
                                         <td className="px-4 py-4 whitespace-nowrap text-gray-300 dark:text-gray-300 text-gray-700 text-base">
                                             {entryTime}
                                         </td>
                                         <td className="px-4 py-4 whitespace-nowrap text-gray-300 dark:text-gray-300 text-gray-700 text-base">
                                             {entryPlaza}
                                         </td>
-                                        <td className="px-4 py-4 whitespace-nowrap text-gray-300 dark:text-gray-300 text-gray-700 text-base">
-                                            {entryLane}
-                                        </td>
+                                        {/* Entry Plaza Name only for gold_automation */}
+                                        {tableType === 'gold_automation' && (
+                                            <td className="px-4 py-4 whitespace-nowrap text-gray-300 dark:text-gray-300 text-gray-700 text-base">
+                                                {entryPlazaName}
+                                            </td>
+                                        )}
+                                        {/* Entry Lane only for master_viz */}
+                                        {tableType === 'master_viz' && (
+                                            <td className="px-4 py-4 whitespace-nowrap text-gray-300 dark:text-gray-300 text-gray-700 text-base">
+                                                {entryLane}
+                                            </td>
+                                        )}
                                         <td className="px-4 py-4 whitespace-nowrap text-gray-300 dark:text-gray-300 text-gray-700 text-base">
                                             {exitTime}
                                         </td>
                                         <td className="px-4 py-4 whitespace-nowrap text-gray-300 dark:text-gray-300 text-gray-700 text-base">
                                             {exitPlaza}
                                         </td>
-                                        <td className="px-4 py-4 whitespace-nowrap text-gray-300 dark:text-gray-300 text-gray-700 text-base">
-                                            {exitLane}
-                                        </td>
+                                        {/* Exit Plaza Name only for gold_automation */}
+                                        {tableType === 'gold_automation' && (
+                                            <td className="px-4 py-4 whitespace-nowrap text-gray-300 dark:text-gray-300 text-gray-700 text-base">
+                                                {exitPlazaName}
+                                            </td>
+                                        )}
+                                        {/* Exit Lane only for master_viz */}
+                                        {tableType === 'master_viz' && (
+                                            <td className="px-4 py-4 whitespace-nowrap text-gray-300 dark:text-gray-300 text-gray-700 text-base">
+                                                {exitLane}
+                                            </td>
+                                        )}
+                                        {/* Vehicle Type Code only for gold_automation */}
+                                        {tableType === 'gold_automation' && (
+                                            <td className="px-4 py-4 whitespace-nowrap text-gray-300 dark:text-gray-300 text-gray-700 text-base">
+                                                {vehicleTypeCode}
+                                            </td>
+                                        )}
                                         <td className="px-4 py-4 whitespace-nowrap text-gray-300 dark:text-gray-300 text-gray-700 text-base">
                                             {vehicleType}
                                         </td>
-                                        <td className="px-4 py-4 whitespace-nowrap text-gray-300 dark:text-gray-300 text-gray-700 text-base">
-                                            {planRate}
-                                        </td>
-                                        <td className="px-4 py-4 whitespace-nowrap text-gray-300 dark:text-gray-300 text-gray-700 text-base">
-                                            {fareType}
-                                        </td>
-                                        <td className="px-4 py-4 whitespace-nowrap text-gray-300 dark:text-gray-300 text-gray-700 text-base">
-                                            {distanceMiles}
-                                        </td>
-                                        <td className="px-4 py-4 whitespace-nowrap text-gray-300 dark:text-gray-300 text-gray-700 text-base">
-                                            {travelTimeMinutes}
-                                        </td>
-                                        <td className="px-4 py-4 whitespace-nowrap text-gray-300 dark:text-gray-300 text-gray-700 text-base">
-                                            {speedMph}
-                                        </td>
-                                        <td className="px-4 py-4 whitespace-nowrap text-gray-300 dark:text-gray-300 text-gray-700 text-base">
-                                            {travelCategory}
-                                        </td>
-                                        <td className="px-4 py-4 whitespace-nowrap text-gray-300 dark:text-gray-300 text-gray-700 text-base">
-                                            {isImpossibleTravel}
-                                        </td>
-                                        <td className="px-4 py-4 whitespace-nowrap text-gray-300 dark:text-gray-300 text-gray-700 text-base">
-                                            {isRapidSuccession}
-                                        </td>
-                                        <td className="px-4 py-4 whitespace-nowrap text-gray-300 dark:text-gray-300 text-gray-700 text-base">
-                                            {flagRushHour}
-                                        </td>
+                                        {/* Plan Rate and Fare Type only for master_viz */}
+                                        {tableType === 'master_viz' && (
+                                            <>
+                                                <td className="px-4 py-4 whitespace-nowrap text-gray-300 dark:text-gray-300 text-gray-700 text-base">
+                                                    {planRate}
+                                                </td>
+                                                <td className="px-4 py-4 whitespace-nowrap text-gray-300 dark:text-gray-300 text-gray-700 text-base">
+                                                    {fareType}
+                                                </td>
+                                            </>
+                                        )}
+                                        {/* Distance, Travel Time, Speed only for master_viz */}
+                                        {tableType === 'master_viz' && (
+                                            <>
+                                                <td className="px-4 py-4 whitespace-nowrap text-gray-300 dark:text-gray-300 text-gray-700 text-base">
+                                                    {distanceMiles}
+                                                </td>
+                                                <td className="px-4 py-4 whitespace-nowrap text-gray-300 dark:text-gray-300 text-gray-700 text-base">
+                                                    {travelTimeMinutes}
+                                                </td>
+                                                <td className="px-4 py-4 whitespace-nowrap text-gray-300 dark:text-gray-300 text-gray-700 text-base">
+                                                    {speedMph}
+                                                </td>
+                                                <td className="px-4 py-4 whitespace-nowrap text-gray-300 dark:text-gray-300 text-gray-700 text-base">
+                                                    {travelCategory}
+                                                </td>
+                                                <td className="px-4 py-4 whitespace-nowrap text-gray-300 dark:text-gray-300 text-gray-700 text-base">
+                                                    {isImpossibleTravel}
+                                                </td>
+                                                <td className="px-4 py-4 whitespace-nowrap text-gray-300 dark:text-gray-300 text-gray-700 text-base">
+                                                    {isRapidSuccession}
+                                                </td>
+                                                <td className="px-4 py-4 whitespace-nowrap text-gray-300 dark:text-gray-300 text-gray-700 text-base">
+                                                    {flagRushHour}
+                                                </td>
+                                                <td className="px-4 py-4 whitespace-nowrap text-gray-300 dark:text-gray-300 text-gray-700 text-base">
+                                                    {flagOverlappingJourney}
+                                                </td>
+                                                <td className="px-4 py-4 whitespace-nowrap text-gray-300 dark:text-gray-300 text-gray-700 text-base">
+                                                    {flagDriverAmountOutlier}
+                                                </td>
+                                                <td className="px-4 py-4 whitespace-nowrap text-gray-300 dark:text-gray-300 text-gray-700 text-base">
+                                                    {flagRouteAmountOutlier}
+                                                </td>
+                                                <td className="px-4 py-4 whitespace-nowrap text-gray-300 dark:text-gray-300 text-gray-700 text-base">
+                                                    {flagAmountUnusuallyHigh}
+                                                </td>
+                                                <td className="px-4 py-4 whitespace-nowrap text-gray-300 dark:text-gray-300 text-gray-700 text-base">
+                                                    {flagDriverSpendSpike}
+                                                </td>
+                                                <td className="px-4 py-4 whitespace-nowrap text-gray-300 dark:text-gray-300 text-gray-700 text-base">
+                                                    {predictionTimestamp}
+                                                </td>
+                                            </>
+                                        )}
+                                        {/* Gold automation specific flags */}
+                                        {tableType === 'gold_automation' && (
+                                            <>
+                                                <td className="px-4 py-4 whitespace-nowrap text-gray-300 dark:text-gray-300 text-gray-700 text-base">
+                                                    {flagVehicleType}
+                                                </td>
+                                                <td className="px-4 py-4 whitespace-nowrap text-gray-300 dark:text-gray-300 text-gray-700 text-base">
+                                                    {flagAmountGt29}
+                                                </td>
+                                                <td className="px-4 py-4 whitespace-nowrap text-gray-300 dark:text-gray-300 text-gray-700 text-base">
+                                                    {flagIsOutOfState}
+                                                </td>
+                                            </>
+                                        )}
                                         <td className="px-4 py-4 whitespace-nowrap text-gray-300 dark:text-gray-300 text-gray-700 text-base">
                                             {flagIsWeekend}
                                         </td>
                                         <td className="px-4 py-4 whitespace-nowrap text-gray-300 dark:text-gray-300 text-gray-700 text-base">
                                             {flagIsHoliday}
                                         </td>
-                                        <td className="px-4 py-4 whitespace-nowrap text-gray-300 dark:text-gray-300 text-gray-700 text-base">
-                                            {flagOverlappingJourney}
-                                        </td>
-                                        <td className="px-4 py-4 whitespace-nowrap text-gray-300 dark:text-gray-300 text-gray-700 text-base">
-                                            {flagDriverAmountOutlier}
-                                        </td>
-                                        <td className="px-4 py-4 whitespace-nowrap text-gray-300 dark:text-gray-300 text-gray-700 text-base">
-                                            {flagRouteAmountOutlier}
-                                        </td>
-                                        <td className="px-4 py-4 whitespace-nowrap text-gray-300 dark:text-gray-300 text-gray-700 text-base">
-                                            {flagAmountUnusuallyHigh}
-                                        </td>
-                                        <td className="px-4 py-4 whitespace-nowrap text-gray-300 dark:text-gray-300 text-gray-700 text-base">
-                                            {flagDriverSpendSpike}
-                                        </td>
-                                        <td className="px-4 py-4 whitespace-nowrap text-gray-300 dark:text-gray-300 text-gray-700 text-base">
-                                            {predictionTimestamp}
-                                        </td>
-                                        <td className="px-4 py-4 whitespace-nowrap text-gray-300 dark:text-gray-300 text-gray-700 text-base">
-                                            {lastUpdated}
-                                        </td>
+                                        {/* Last Updated only for master_viz */}
+                                        {tableType === 'master_viz' && (
+                                            <td className="px-4 py-4 whitespace-nowrap text-gray-300 dark:text-gray-300 text-gray-700 text-base">
+                                                {lastUpdated}
+                                            </td>
+                                        )}
                                     </tr>
                                 );
                             })}
