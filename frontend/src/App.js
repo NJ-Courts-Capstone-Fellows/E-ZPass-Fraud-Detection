@@ -57,6 +57,18 @@ const fetchSeverityChartData = async () => {
     }
 };
 
+const fetchTableInfo = async () => {
+    try {
+        const response = await fetch(`${apiUrl}/api/table-info`);
+        if (!response.ok) throw new Error('Failed to fetch table info');
+        const data = await response.json();
+        return data;
+    } catch (err) {
+        console.error(err);
+        return { table_name: 'master_viz', is_master_viz: true, is_gold_automation: false };
+    }
+};
+
 const fetchRecentFlaggedTransactions = async () => {
     try {
         const response = await fetch(`${apiUrl}/api/transactions/recent-flagged`);
@@ -358,6 +370,7 @@ const CategoryChart = () => {
     // Color mapping for different fraud categories - using vibrant colors visible in light mode
     const getCategoryColor = (category, index) => {
         const colorMap = {
+            // Master_viz categories
             'Holiday': 'rgba(239, 68, 68, 0.9)', // Red
             'Out of State': 'rgba(14, 165, 233, 0.9)', // Sky Blue
             'Vehicle Type > 2': 'rgba(168, 85, 247, 0.9)', // Purple
@@ -371,7 +384,11 @@ const CategoryChart = () => {
             'Possible Cloning': 'rgba(168, 85, 247, 0.9)', // Purple
             'Toll Evasion': 'rgba(239, 68, 68, 0.9)', // Red
             'Account Takeover': 'rgba(220, 38, 38, 0.9)', // Dark Red
-            'Card Skimming': 'rgba(236, 72, 153, 0.9)' // Pink
+            'Card Skimming': 'rgba(236, 72, 153, 0.9)', // Pink
+            // Gold_automation categories
+            'Vehicle Type': 'rgba(168, 85, 247, 0.9)', // Purple
+            'Amount > 29': 'rgba(251, 146, 60, 0.9)', // Orange
+            'Fraud Detected': 'rgba(220, 38, 38, 0.9)' // Dark Red
         };
         // Fallback colors - using vibrant, distinct colors that are visible in light mode
         const fallbackColors = [
@@ -960,6 +977,7 @@ const ScatterPlot = () => {
     const [chartData, setChartData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [isDarkMode, setIsDarkMode] = useState(document.documentElement.classList.contains('dark'));
+    const [tableType, setTableType] = useState('master_viz');
 
     useEffect(() => {
         const checkTheme = () => {
@@ -974,6 +992,10 @@ const ScatterPlot = () => {
     useEffect(() => {
         const fetchScatterData = async () => {
             try {
+                // Fetch table info to determine table type
+                const tableInfo = await fetchTableInfo();
+                setTableType(tableInfo.table_name || 'master_viz');
+                
                 const response = await fetch(`${apiUrl}/api/charts/scatter`);
                 const result = await response.json();
                 if (result.data && result.data.length > 0) {
@@ -1027,7 +1049,7 @@ const ScatterPlot = () => {
 
     const layout = {
         title: {
-            text: 'ML Anomaly Score vs Amount',
+            text: tableType === 'gold_automation' ? 'Rule-Based Score vs Amount' : 'ML Anomaly Score vs Amount',
             font: { color: isDarkMode ? '#e5e7eb' : '#1e293b', size: 20 }
         },
         xaxis: {
@@ -1041,7 +1063,7 @@ const ScatterPlot = () => {
         },
         yaxis: {
             title: {
-                text: 'ml_anomaly_score',
+                text: tableType === 'gold_automation' ? 'Rule-Based Score' : 'ML Anomaly Score',
                 font: { color: isDarkMode ? '#94a3b8' : '#64748b' }
             },
             range: [-0.1, 0.5],
@@ -1072,7 +1094,7 @@ const ScatterPlot = () => {
     return (
         <div style={{ height: '600px' }}>
             <Plot
-                key={isDarkMode ? 'dark' : 'light'}
+                key={`${isDarkMode ? 'dark' : 'light'}-${tableType}`}
                 data={traces}
                 layout={layout}
                 config={config}

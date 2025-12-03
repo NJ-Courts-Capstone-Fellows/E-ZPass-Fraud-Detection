@@ -268,7 +268,7 @@ def category_chart():
 
     # GOLD_AUTOMATION VERSION (based on your columns)
     elif TABLE_NAME == "gold_automation":
-        # Each boolean flag becomes its own category
+        # Filter by flag_fraud first, then show the contributing flags (excluding flag_fraud itself)
         query = f"""
             WITH unpivoted AS (
                 SELECT
@@ -279,10 +279,10 @@ def category_chart():
                     STRUCT('Amount > 29' AS flag_label, flag_amount_gt_29 AS flag_value),
                     STRUCT('Out of State' AS flag_label, flag_is_out_of_state AS flag_value),
                     STRUCT('Weekend' AS flag_label, flag_is_weekend AS flag_value),
-                    STRUCT('Holiday' AS flag_label, flag_is_holiday AS flag_value),
-                    STRUCT('Fraud Detected' AS flag_label, flag_fraud AS flag_value)
+                    STRUCT('Holiday' AS flag_label, flag_is_holiday AS flag_value)
                 ]) AS f
-                WHERE f.flag_value IS TRUE
+                WHERE flag_fraud = TRUE
+                    AND f.flag_value IS TRUE
             )
             SELECT category, COUNT(*) AS count
             FROM unpivoted
