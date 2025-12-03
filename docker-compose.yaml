@@ -6,7 +6,7 @@ x-airflow-common:
   build:
     context: .
     dockerfile: Dockerfile
-  image: apache/airflow:2.7.3-python3.10
+  image: ezpass-airflow:latest
   environment:
     &airflow-common-env
     AIRFLOW__CORE__EXECUTOR: LocalExecutor
@@ -30,7 +30,7 @@ x-airflow-common:
     GOOGLE_APPLICATION_CREDENTIALS: /opt/airflow/config/gcp-key.json
     # Alternatively, mount gcloud config for Application Default Credentials
     # CLOUDSDK_CONFIG: /opt/airflow/config/gcloud
-    _PIP_ADDITIONAL_REQUIREMENTS: ${_PIP_ADDITIONAL_REQUIREMENTS:-apache-airflow-providers-google}
+    # _PIP_ADDITIONAL_REQUIREMENTS removed - packages installed in Dockerfile to avoid slow runtime installs
   volumes:
     - ./src/airflow/dags:/opt/airflow/dags
     - ./src/airflow/logs:/opt/airflow/logs
@@ -39,6 +39,7 @@ x-airflow-common:
     - ./src/ml_train:/opt/airflow/ml_train
     - ./data:/opt/airflow/data
     - ./.env:/opt/airflow/.env
+    - ./ezpass_dbt:/opt/airflow/dbt_project
     # Uncomment below to use your local gcloud credentials (if no service account key)
     # - ~/.config/gcloud:/opt/airflow/config/gcloud:ro
   user: "${AIRFLOW_UID:-50000}:0"

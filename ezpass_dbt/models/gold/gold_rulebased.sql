@@ -5,7 +5,7 @@
         'data_type': 'date'
     },
     cluster_by=['tag_plate_number', 'transaction_date'],
-    tags=['gold', 'analytics']
+    tags=['gold', 'rulebased']
 ) }}
 
 SELECT 
@@ -78,4 +78,5 @@ SELECT
     last_updated
 
 FROM {{ ref('gold') }}
+
 
