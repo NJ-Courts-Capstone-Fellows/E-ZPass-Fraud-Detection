@@ -546,5 +546,14 @@ def update_status():
     return jsonify({"success": True})
 
 
+@app.route("/api/table-info")
+def table_info():
+    """Return information about the current table being used"""
+    return jsonify({
+        "table_name": TABLE_NAME,
+        "is_master_viz": TABLE_NAME == "master_viz",
+        "is_gold_automation": TABLE_NAME == "gold_automation"
+    })
+
 if __name__ == "__main__":
     app.run(debug=True, port=5001)
