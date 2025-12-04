@@ -317,6 +317,22 @@ const BarChart = () => {
                 interaction: {
                     mode: 'index',
                     intersect: false
+                },
+                scales: {
+                    x: {
+                        ticks: {
+                            font: {
+                                size: 15   // change to whatever size you want
+                            }
+                        }
+                    },
+                    y: {
+                        ticks: {
+                            font: {
+                                size: 15
+                            }
+                        }
+                    }
                 }
             }
         });
