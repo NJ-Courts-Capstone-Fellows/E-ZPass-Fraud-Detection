@@ -38,7 +38,6 @@ jobs:
       - name: Set environment variables
         run: echo "BIGQUERY_KEY_JSON=${{ secrets.BIGQUERY_KEY_JSON }}" >> $GITHUB_ENV
 
-
       - name: Run tests
         run: |
           python -m pytest backend/tests/ --maxfail=1 --disable-warnings -v
