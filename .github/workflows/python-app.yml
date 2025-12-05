@@ -35,15 +35,9 @@ jobs:
           pip install -r requirements.txt
           pip install pytest pytest-mock
 
-      - name: Set BIGQUERY_KEY_JSON
-        # Use heredoc to preserve newlines/quotes in the JSON secret
-        run: |
-          {
-            echo "BIGQUERY_KEY_JSON<<'EOF'"
-            echo "${{ secrets.BIGQUERY_KEY_JSON }}"
-            echo "EOF"
-          } >> $GITHUB_ENV
-
       - name: Run tests
+        env:
+          # GitHub handles the injection securely here
+          BIGQUERY_KEY_JSON: ${{ secrets.BIGQUERY_KEY_JSON }}
         run: |
           python -m pytest backend/tests/ --maxfail=1 --disable-warnings -v
