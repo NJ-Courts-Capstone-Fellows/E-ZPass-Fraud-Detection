@@ -654,7 +654,6 @@ def update_status():
         print(f"Error updating transaction status: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
-
 @app.route("/api/table-info")
 def table_info():
     """Return information about the current table being used"""
