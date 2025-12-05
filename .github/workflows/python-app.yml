@@ -3,13 +3,20 @@ name: Python Flask CI
 on:
   push:
     branches:
-      - '**'  # all branches
+      - '**'
+    paths:
+      - 'backend/**'   # only trigger job if backend changed
+      - '.github/workflows/**'  # include workflow updates
   pull_request:
     branches:
-      - '**'  # all branches
+      - '**'
+    paths:
+      - 'backend/**'
+      - '.github/workflows/**'
 
 jobs:
   test:
+    if: github.ref == 'refs/heads/main' || github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -29,6 +36,5 @@ jobs:
           pip install -r requirements.txt
 
       - name: Run tests
-        if: github.ref == 'refs/heads/main' || contains(join(github.event.commits.*.modified, ' '), 'backend/')
         run: |
           pytest tests/ --maxfail=1 --disable-warnings -v
