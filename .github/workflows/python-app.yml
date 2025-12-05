@@ -35,6 +35,11 @@ jobs:
           pip install -r requirements.txt
           pip install pytest pytest-mock
 
+      - name: Set environment variables
+        run: echo "${{ secrets.BIGQUERY_KEY_JSON }}" > bigquery_key.json
+        env:
+          BIGQUERY_KEY_JSON: ${{ secrets.BIGQUERY_KEY_JSON }}
+
       - name: Run tests
         run: |
           python -m pytest backend/tests/ --maxfail=1 --disable-warnings -v
