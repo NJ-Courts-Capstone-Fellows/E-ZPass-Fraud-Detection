@@ -663,5 +663,7 @@ def table_info():
         "is_gold_automation": TABLE_NAME == "gold_automation"
     })
 
+
+
 if __name__ == "__main__":
     app.run(debug=True, port=5001)

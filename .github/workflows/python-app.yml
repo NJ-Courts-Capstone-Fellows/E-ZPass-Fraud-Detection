@@ -5,8 +5,8 @@ on:
     branches:
       - '**'
     paths:
-      - 'backend/**'   # only trigger job if backend changed
-      - '.github/workflows/**'  # include workflow updates
+      - 'backend/**'
+      - '.github/workflows/**'
   pull_request:
     branches:
       - '**'
@@ -16,7 +16,6 @@ on:
 
 jobs:
   test:
-    if: github.ref == 'refs/heads/main' || github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     strategy:
       matrix:
